@@ -277,27 +277,15 @@ proc preload*(m: IgnoreMatcher, fromDir, upTo: string) =
 
 # --- matching ---
 
+proc isIgnoredActive*(m: IgnoreMatcher, act: seq[int], absPath: string,
+                      isDir: bool): bool
+
 proc isIgnored*(m: IgnoreMatcher, absPath: string, isDir: bool): bool =
-  if m.rules.len == 0: return false
-  var spans: array[64, (int, int)]
-  let total = componentSpans(absPath, spans)
-  if total == 0: return false
-  var last = false
-  for i in 0 ..< m.rules.len:
-    let r = m.rules[i]
-    let lit = m.ruleLit[i]
-    if lit.len > 0 and not containsComponent(absPath, lit):
-      continue
-    let base = r.base
-    if base.len > 0:
-      if absPath.len < base.len: continue
-      if not absPath.startsWith(base): continue
-      if absPath.len > base.len and absPath[base.len] != '/': continue
-    let baseComps = if base == "/": 0 else: base.count('/')
-    if baseComps >= total: continue
-    if ruleMatchesPath(r.pat, absPath, spans, baseComps, total - baseComps, isDir):
-      last = not r.pat.negate
-  last
+  ## Full matcher over all rules — the reference implementation. Production
+  ## callers use `isIgnoredActive` with a base-scoped rule set.
+  var allIdx: seq[int]
+  for i in 0 ..< m.rules.len: allIdx.add i
+  m.isIgnoredActive(allIdx, absPath, isDir)
 
 proc containsLit*(m: IgnoreMatcher, name: string): bool =
   m.litSegs.len > 0 and name in m.litSegs

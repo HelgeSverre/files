@@ -114,8 +114,13 @@ proc walkDirEnum(dir: string, depth: int, taint: bool, giState, exState: ActiveS
       let name = baseName(path)
       let isDir = kind == pcDir
       let isLink = kind == pcLinkToDir or kind == pcLinkToFile
-      handleEntry(dir, name, isDir, isLink, depth, taint, giState, exState,
-                  hasStatus, gi, ex, opts, entries)
+      try:
+        handleEntry(dir, name, isDir, isLink, depth, taint, giState, exState,
+                    hasStatus, gi, ex, opts, entries)
+      except CatchableError:
+        # Skip a single problematic entry rather than dropping the rest of the
+        # directory (walkDir can raise mid-iteration on Windows).
+        discard
   except CatchableError:
     discard
 
