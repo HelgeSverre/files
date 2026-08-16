@@ -1,17 +1,18 @@
-import std/[posix]
+import std/posix
 
 type
   ObjKind* = enum okUnknown, okDir, okFile, okLink
   BulkEntry* = object
     name*: string
     kind*: ObjKind
+    size*: int64
 
 const
   ATTR_CMN_RETURNED_ATTRS = 0x80000000'u32
   ATTR_CMN_NAME = 0x00000001'u32
   ATTR_CMN_OBJTYPE = 0x00000008'u32
   ATTR_CMN_MODTIME = 0x00000400'u32
-  ATTR_FILE_ALLOCSIZE = 0x00000004'u32
+  ATTR_FILE_TOTALSIZE = 0x00000001'u32
   ATTR_BIT_MAP_COUNT = 5'u16
   FSOPT_PACK_INVAL_ATTRS = 0x00000008'u32
   VREG = 1'u32
@@ -31,7 +32,8 @@ type
 proc getattrlistbulk(fd: cint, alist: pointer, buf: pointer,
                      bufsize: csize_t, opts: uint64): cint {.importc.}
 
-proc rd8(b: ptr UncheckedArray[byte], off: int): uint8 = b[off]
+var gBuf: array[128 * 1024, byte]
+
 proc rd32(b: ptr UncheckedArray[byte], off: int): uint32 =
   uint32(b[off]) or (uint32(b[off + 1]) shl 8) or
   (uint32(b[off + 2]) shl 16) or (uint32(b[off + 3]) shl 24)
@@ -46,25 +48,27 @@ proc listDirBulk*(dir: string, outEntries: var seq[BulkEntry]): bool =
     bitmapcount: ATTR_BIT_MAP_COUNT,
     reserved: 0,
     commonattr: ATTR_CMN_RETURNED_ATTRS or ATTR_CMN_NAME or
-                ATTR_CMN_OBJTYPE or ATTR_CMN_MODTIME,
+                ATTR_CMN_OBJTYPE,
     volattr: 0,
     dirattr: 0,
-    fileattr: ATTR_FILE_ALLOCSIZE,
+    fileattr: ATTR_FILE_TOTALSIZE,
     forkattr: 0
   )
-  var buf: array[128 * 1024, byte]
-  let b = cast[ptr UncheckedArray[byte]](addr buf[0])
+  let b = cast[ptr UncheckedArray[byte]](addr gBuf[0])
   while true:
-    let n = getattrlistbulk(fd, addr alist, addr buf[0],
-                            csize_t(buf.len), uint64(FSOPT_PACK_INVAL_ATTRS))
+    let n = getattrlistbulk(fd, addr alist, addr gBuf[0],
+                            csize_t(gBuf.len), uint64(FSOPT_PACK_INVAL_ATTRS))
     if n <= 0: break
     var off = 0
     for i in 0 ..< int(n):
       let entryLen = int(rd32(b, off))
-      if entryLen < 48 or off + entryLen > buf.len: break
+      if entryLen < 36 or off + entryLen > gBuf.len: break
       let nameOff = int(rd32(b, off + 24))
       let nameLen = int(rd32(b, off + 28))
       let objtype = rd32(b, off + 32)
+      let retFile = rd32(b, off + 16)
+      let size = if (retFile and ATTR_FILE_TOTALSIZE) != 0'u32:
+                   int64(rd32(b, off + 52)) or (int64(rd32(b, off + 56)) shl 32) else: 0'i64
       var kind: ObjKind
       case objtype
       of VDIR: kind = okDir
@@ -80,7 +84,7 @@ proc listDirBulk*(dir: string, outEntries: var seq[BulkEntry]): bool =
       if n == 0:
         off += entryLen
         continue
-      var e = BulkEntry(kind: kind)
+      var e = BulkEntry(kind: kind, size: size)
       e.name = newString(n)
       copyMem(addr e.name[0], addr b[nameBase], n)
       outEntries.add e

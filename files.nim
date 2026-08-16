@@ -145,20 +145,15 @@ proc main() =
   let wopts = WalkOptions(maxDepth: cli.maxDepth, showAll: cli.showAll,
                           gitignore: gitignore, extra: extra,
                           repoRoot: repoRoot, statuses: statuses)
-  var visited = initHashSet[(int64, int64)]()
-  try:
-    let fi = getFileInfo(absRoot, followSymlink = true)
-    visited.incl (int64(fi.id.device), int64(fi.id.file))
-  except OSError:
-    fail("cannot access " & cli.path)
-
-  let root = collectNode(absRoot, 0, false, wopts, visited)
+  let root = collectNode(absRoot, 0, false, ActiveState(), ActiveState(), wopts)
 
   var ropts = RenderOptions(color: color, icons: cli.icons, sizes: cli.sizes,
                             termWidth: if termW > 0: termW else: 100000)
   var lines: seq[Line]
   renderTree(root, ropts, lines)
-  stdout.write(renderOutput(lines, ropts))
+  let outStr = renderOutput(lines, ropts)
+
+  stdout.write(outStr)
 
   var dirs, files = 0
   var bytes = 0'i64

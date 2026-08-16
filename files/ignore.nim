@@ -1,4 +1,4 @@
-import std/[os, sets, streams, strutils]
+import std/[os, sets, strutils, tables]
 
 type
   TokKind = enum tkLit, tkStar, tkQuest, tkClass, tkDStar
@@ -26,11 +26,13 @@ type
     litSegs: HashSet[string]
     simpleAlways: seq[int]
     complexIdx: seq[int]
+    byBase: Table[string, seq[int]]
 
 proc newIgnoreMatcher*(): IgnoreMatcher =
   new(result)
   result.loaded = initHashSet[string]()
   result.litSegs = initHashSet[string]()
+  result.byBase = initTable[string, seq[int]]()
 
 # --- matching primitives (operate on a path via (start, len) component spans) ---
 
@@ -231,6 +233,7 @@ proc pushRule(m: IgnoreMatcher, base: string, p: Pattern) =
       m.complexIdx.add idx
     else:
       m.simpleAlways.add idx
+  m.byBase.mgetOrPut(base, @[]).add m.rules.len - 1
 
 proc addRule*(m: IgnoreMatcher, base: string, line: string) =
   let t = line.strip()
@@ -252,12 +255,11 @@ proc loadGitignore*(m: IgnoreMatcher, dir: string) =
   if p in m.loaded: return
   m.loaded.incl p
   if fileExists(p):
-    let fs = newFileStream(p, fmRead)
-    if fs != nil:
-      var line: string
-      while fs.readLine(line):
+    try:
+      for line in readFile(p).splitLines():
         m.addRule(dir, line)
-      fs.close()
+    except CatchableError:
+      discard
 
 proc preload*(m: IgnoreMatcher, fromDir, upTo: string) =
   var d = fromDir
@@ -300,19 +302,73 @@ proc baseCovers(base, dir: string): bool =
   if dir == base: return true
   dir.len > base.len and dir.startsWith(base) and dir[base.len] == '/'
 
-proc activeAlways*(m: IgnoreMatcher, dir: string): seq[int] =
-  ## Indices of simple (name-checkable) always rules whose base covers `dir`.
-  for idx in m.simpleAlways:
-    if baseCovers(m.rules[idx].base, dir):
+proc initialActive*(m: IgnoreMatcher, absRoot: string): seq[int] =
+  ## Rule indices that apply at the walk root (rules whose base is an ancestor
+  ## of, or equal to, `absRoot`, e.g. preloaded parent .gitignore files).
+  for idx in 0 ..< m.rules.len:
+    if baseCovers(m.rules[idx].base, absRoot):
       result.add idx
 
-proc needsFullCheck*(m: IgnoreMatcher, dir: string): bool =
-  ## True if a complex rule (anchored / multi-segment, no literal) could apply
-  ## to paths under `dir`; such subtrees must use the full matcher.
-  for idx in m.complexIdx:
-    if baseCovers(m.rules[idx].base, dir):
-      return true
-  false
+proc activeFor*(m: IgnoreMatcher, parentAct: seq[int], dir: string): seq[int] =
+  ## Active rule indices for a directory: inherited from the parent plus the
+  ## rules whose base is exactly this directory (loaded when we entered it).
+  result = parentAct
+  for idx in m.byBase.getOrDefault(dir, @[]):
+    result.add idx
+
+proc ruleIsComplex*(m: IgnoreMatcher, idx: int): bool =
+  let r = m.rules[idx]
+  r.pat.anchored or r.pat.segs.len != 1
+
+proc ruleLit*(m: IgnoreMatcher, idx: int): string = m.ruleLit[idx]
+
+proc ruleBase*(m: IgnoreMatcher, idx: int): string = m.rules[idx].base
+
+proc isIgnoredActive*(m: IgnoreMatcher, act: seq[int], absPath: string,
+                      isDir: bool): bool =
+  ## Full matcher restricted to a set of rule indices (already base-scoped).
+  var spans: array[64, (int, int)]
+  let total = componentSpans(absPath, spans)
+  if total == 0: return false
+  var last = false
+  for i in act:
+    let r = m.rules[i]
+    let base = r.base
+    if base.len > 0:
+      if absPath.len < base.len: continue
+      if not absPath.startsWith(base): continue
+      if absPath.len > base.len and absPath[base.len] != '/': continue
+    let lit = m.ruleLit[i]
+    if lit.len > 0 and not containsComponent(absPath, lit): continue
+    let baseComps = if base == "/": 0 else: base.count('/')
+    if baseComps >= total: continue
+    if ruleMatchesPath(r.pat, absPath, spans, baseComps, total - baseComps, isDir):
+      last = not r.pat.negate
+  last
+
+type ActiveState* = object
+  act*: seq[int]
+  lits*: HashSet[string]
+  always*: seq[int]
+  complex*: bool
+
+proc stateFrom(act: seq[int], m: IgnoreMatcher): ActiveState =
+  result.act = act
+  result.lits = initHashSet[string]()
+  for idx in act:
+    let lit = m.ruleLit[idx]
+    if lit.len > 0:
+      result.lits.incl lit
+    elif not m.ruleIsComplex(idx):
+      result.always.add idx
+    else:
+      result.complex = true
+
+proc initialState*(m: IgnoreMatcher, absRoot: string): ActiveState =
+  stateFrom(m.initialActive(absRoot), m)
+
+proc activeForState*(m: IgnoreMatcher, parentAct: seq[int], dir: string): ActiveState =
+  stateFrom(m.activeFor(parentAct, dir), m)
 
 proc entryIgnored*(m: IgnoreMatcher, actv: seq[int], name: string, isDir: bool): bool =
   ## Fast basename check against the active simple-always rules. Callers only
