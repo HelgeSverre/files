@@ -1,4 +1,4 @@
-import std/[os, osproc, strutils, tables, terminal, threadpool]
+import std/[os, strutils, tables, terminal, typedthreads]
 import files/[gitstatus, ignore, interrupt, render, util, walk]
 
 const VersionStr = "files 0.2.0"
@@ -22,6 +22,16 @@ type CliOptions = object
   extraIgnores: seq[string]
   showHelp: bool
   showVersion: bool
+
+type GitJob = object
+  start: string
+  statuses: Table[string, string]
+  branch: string
+
+proc gitWorker(job: ref GitJob) {.thread.} =
+  let gi = fetchGit(job.start)
+  job.statuses = gi.statuses
+  job.branch = gi.branch
 
 proc usage(): string =
   """
@@ -130,12 +140,16 @@ proc main() =
   var repoRoot = ""
   var statuses = initTable[string, string]()
   var branch = ""
-  var gitFv: FlowVar[GitInfo]
+  var gitJob = new(GitJob)
+  gitJob.start = absRoot
+  var gitThread: Thread[ref GitJob]
+  var gitRunning = false
   if cli.git:
     repoRoot = findRepoRoot(absRoot)
     if repoRoot != "":
       gitignore.preload(repoRoot, absRoot)
-      gitFv = spawn fetchGit(repoRoot)
+      createThread(gitThread, gitWorker, gitJob)
+      gitRunning = true
 
   let tty = isatty(stdout)
   let color = cli.color and tty
@@ -146,11 +160,11 @@ proc main() =
                           repoRoot: repoRoot, statuses: statuses)
   let root = collectNode(absRoot, 0, false, ActiveState(), ActiveState(), wopts)
 
-  if cli.git and repoRoot != "":
-    let gi = ^gitFv
-    statuses = gi.statuses
-    branch = gi.branch
-    assignStatuses(root, gi.repoRoot, absRoot, statuses)
+  if gitRunning:
+    joinThread(gitThread)
+    statuses = gitJob.statuses
+    branch = gitJob.branch
+    assignStatuses(root, repoRoot, absRoot, statuses)
 
   var ropts = RenderOptions(color: color, icons: cli.icons, sizes: cli.sizes,
                             termWidth: if termW > 0: termW else: 100000)

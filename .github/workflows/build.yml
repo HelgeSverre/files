@@ -24,7 +24,7 @@ jobs:
             arch: x86_64
             target: macos
             exe: ""
-            extra: "--cpu:amd64"
+            extra: "--cpu:amd64 --passC:'-arch x86_64' --passL:'-arch x86_64'"
             nim_url: https://nim-lang.org/download/nim-2.2.8-macosx_arm64.tar.xz
           - os: ubuntu-latest
             arch: x86_64
