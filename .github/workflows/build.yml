@@ -16,26 +16,34 @@ jobs:
           - os: macos-14
             arch: arm64
             target: macos
+            nim_arch: macosx_arm64
             extra: ""
           - os: macos-14
             arch: x86_64
             target: macos
+            nim_arch: macosx_arm64
             extra: "--cpu:x86_64"
           - os: ubuntu-latest
             arch: x86_64
             target: linux
+            nim_arch: linux_x64
             extra: ""
           - os: ubuntu-24.04-arm
             arch: arm64
             target: linux
+            nim_arch: linux_arm64
             extra: ""
+    env:
+      NIM_VERSION: "2.2.8"
     steps:
       - uses: actions/checkout@v4
 
       - name: Install Nim
-        uses: jiro4989/setup-nim-action@v1
-        with:
-          nim-version: "2.2.8"
+        run: |
+          url="https://nim-lang.org/download/nim-${NIM_VERSION}-${{ matrix.nim_arch }}.tar.xz"
+          curl -fsSL "$url" -o nim.tar.xz
+          tar -xf nim.tar.xz
+          echo "$(pwd)/nim-${NIM_VERSION}/bin" >> "$GITHUB_PATH"
 
       - name: Test
         run: nim c -r --hints:off --path:. tests/test_ignore.nim
