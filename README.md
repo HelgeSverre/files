@@ -37,20 +37,20 @@ Install the latest release binary (macOS, Linux, or Windows via Git Bash — no 
 curl -fsSL https://raw.githubusercontent.com/HelgeSverre/files/main/install.sh | bash
 ```
 
-Or build from source (requires [Nim 2.0+](https://nim-lang.org/install.html)):
+Or build from source (requires [Nim 2.0+](https://nim-lang.org/install.html) and [`just`](https://github.com/casey/just)):
 
 ```sh
 git clone https://github.com/HelgeSverre/files.git
 cd files
-make install       # builds and copies files to ~/.local/bin
+just install       # builds and copies files to ~/.local/bin
 
 files              # inspect the current directory
 files -L 2 ~/code  # show two levels under ~/code
 files -a            # reveal hidden and ignored entries
 ```
 
-`make install` expects `~/.local/bin` to be on your `PATH`. To build without
-installing, run `make build` and use `./bin/files`.
+`just install` expects `~/.local/bin` to be on your `PATH`. To build without
+installing, run `just build` and use `./bin/files`.
 
 ## Usage
 
@@ -94,7 +94,8 @@ macOS (arm64 + x86_64) and Linux (arm64 + x86_64) via GitHub Actions — see
 ## Development
 
 ```sh
-make test   # compile and run the matcher suite
-make build  # create an optimized binary at bin/files
-make run    # build and inspect this repository
+just test    # compile and run the matcher suite
+just build   # create an optimized binary at bin/files
+just run     # build and inspect this repository
+just release 0.3.0   # bump version, tag, and push (CI publishes binaries)
 ```
