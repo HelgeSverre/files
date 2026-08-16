@@ -50,11 +50,12 @@ jobs:
       - name: Install Nim
         shell: bash
         run: |
-          curl -fsSL "${{ matrix.nim_url }}" -o nim.pkg
           if [[ "${{ runner.os }}" == "Windows" ]]; then
-            powershell -Command "Expand-Archive -Path nim.pkg -DestinationPath ."
+            curl -fsSL "${{ matrix.nim_url }}" -o nim.zip
+            powershell -Command "Expand-Archive -Path nim.zip -DestinationPath ."
           else
-            tar -xf nim.pkg
+            curl -fsSL "${{ matrix.nim_url }}" -o nim.tar.xz
+            tar -xf nim.tar.xz
           fi
           echo "$(pwd)/nim-2.2.8/bin" >> "$GITHUB_PATH"
 
