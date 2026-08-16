@@ -81,11 +81,26 @@ jobs:
           grep -q "files.nim" smoke_sizes.txt
           grep -Eq "[0-9]+ dirs" smoke_sizes.txt
 
+      - name: Archive (Homebrew / installers)
+        shell: bash
+        run: |
+          mkdir -p archive
+          cp dist/files-${{ matrix.target }}-${{ matrix.arch }}${{ matrix.exe }} archive/files
+          tar -czf files-${{ matrix.target }}-${{ matrix.arch }}.tar.gz -C archive files
+          shasum -a 256 files-${{ matrix.target }}-${{ matrix.arch }}.tar.gz
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: files-${{ matrix.target }}-${{ matrix.arch }}
           path: dist/files-${{ matrix.target }}-${{ matrix.arch }}${{ matrix.exe }}
+          if-no-files-found: error
+
+      - name: Upload archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: files-${{ matrix.target }}-${{ matrix.arch }}-archive
+          path: files-${{ matrix.target }}-${{ matrix.arch }}.tar.gz
           if-no-files-found: error
 
   release:
