@@ -22,7 +22,7 @@ jobs:
             arch: x86_64
             target: macos
             nim_arch: macosx_arm64
-            extra: "--cpu:x86_64"
+            extra: "--cpu:amd64"
           - os: ubuntu-latest
             arch: x86_64
             target: linux
