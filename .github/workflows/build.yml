@@ -87,7 +87,10 @@ jobs:
           mkdir -p archive
           cp dist/files-${{ matrix.target }}-${{ matrix.arch }}${{ matrix.exe }} archive/files
           tar -czf files-${{ matrix.target }}-${{ matrix.arch }}.tar.gz -C archive files
-          shasum -a 256 files-${{ matrix.target }}-${{ matrix.arch }}.tar.gz
+          # Informational SHA (shasum on macOS, sha256sum on Linux, none on Windows).
+          (command -v shasum >/dev/null && shasum -a 256 files-${{ matrix.target }}-${{ matrix.arch }}.tar.gz) \
+            || (command -v sha256sum >/dev/null && sha256sum files-${{ matrix.target }}-${{ matrix.arch }}.tar.gz) \
+            || true
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
