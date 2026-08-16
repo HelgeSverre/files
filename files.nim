@@ -1,4 +1,4 @@
-import std/[os, osproc, sets, strutils, tables, terminal]
+import std/[os, osproc, strutils, tables, terminal]
 import files/[gitstatus, ignore, interrupt, render, util, walk]
 
 const VersionStr = "files 0.1.0"

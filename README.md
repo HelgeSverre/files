@@ -31,8 +31,13 @@ written in Nim and has no runtime dependencies beyond `git` for status badges.
 
 ## Quick start
 
-Requires [Nim 2.0+](https://nim-lang.org/install.html). `git` is optional and
-only used to display repository status.
+Install the latest release binary (macOS or Linux, no Nim needed):
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/HelgeSverre/files/main/install.sh | bash
+```
+
+Or build from source (requires [Nim 2.0+](https://nim-lang.org/install.html)):
 
 ```sh
 git clone https://github.com/HelgeSverre/files.git
@@ -71,16 +76,20 @@ files [options] [path]
 
 ```text
 files.nim            CLI entry point
+files/bulkread.nim   batched directory enumeration (Darwin getattrlistbulk)
 files/ignore.nim     gitignore parser and matcher
 files/gitstatus.nim  repository discovery and porcelain parsing
-files/walk.nim       tree collection, filtering, and cycle protection
+files/interrupt.nim  SIGINT/SIGTERM handling
+files/walk.nim       tree collection and filtering
 files/render.nim     gradient, icons, layout, and aligned sizes
 files/util.nim       natural sorting, human sizes, and ANSI helpers
 tests/               matcher tests
 ```
 
 On macOS, directory enumeration uses `getattrlistbulk`; other platforms fall
-back to Nim's portable directory walker.
+back to Nim's portable directory walker. Tagged releases build binaries for
+macOS (arm64 + x86_64) and Linux (arm64 + x86_64) via GitHub Actions — see
+`.github/workflows/build.yml`.
 
 ## Development
 

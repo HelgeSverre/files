@@ -1,0 +1,76 @@
+name: build
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: ${{ matrix.target }}-${{ matrix.arch }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-14
+            arch: arm64
+            target: macos
+            extra: ""
+          - os: macos-14
+            arch: x86_64
+            target: macos
+            extra: "--cpu:x86_64"
+          - os: ubuntu-latest
+            arch: x86_64
+            target: linux
+            extra: ""
+          - os: ubuntu-24.04-arm
+            arch: arm64
+            target: linux
+            extra: ""
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Nim
+        uses: jiro4989/setup-nim-action@v1
+        with:
+          nim-version: "2.2.8"
+
+      - name: Test
+        run: nim c -r --hints:off --path:. tests/test_ignore.nim
+
+      - name: Build
+        run: |
+          mkdir -p dist
+          nim c -d:release --opt:speed ${{ matrix.extra }} \
+            -o:dist/files-${{ matrix.target }}-${{ matrix.arch }} files.nim
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: files-${{ matrix.target }}-${{ matrix.arch }}
+          path: dist/files-${{ matrix.target }}-${{ matrix.arch }}
+          if-no-files-found: error
+
+  release:
+    name: Release
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Create GitHub Release
+        run: |
+          gh release create "$GITHUB_REF_NAME" dist/* \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "$GITHUB_REF_NAME" \
+            --generate-notes
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
