@@ -1,0 +1,76 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="360" viewBox="0 0 1200 360" role="img" aria-labelledby="title desc">
+  <title id="title">files</title>
+  <desc id="desc">A colorful terminal tree beside the files wordmark and the tagline see the tree, read the repo.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0b1020"/>
+      <stop offset="0.55" stop-color="#111933"/>
+      <stop offset="1" stop-color="#172554"/>
+    </linearGradient>
+    <linearGradient id="mark" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#2dd4bf"/>
+      <stop offset="0.5" stop-color="#60a5fa"/>
+      <stop offset="1" stop-color="#a78bfa"/>
+    </linearGradient>
+    <linearGradient id="line" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2dd4bf"/>
+      <stop offset="0.5" stop-color="#60a5fa"/>
+      <stop offset="1" stop-color="#a78bfa"/>
+    </linearGradient>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="18"/>
+    </filter>
+    <clipPath id="window"><rect x="650" y="55" width="480" height="250" rx="18"/></clipPath>
+  </defs>
+
+  <rect width="1200" height="360" rx="24" fill="url(#bg)"/>
+  <circle cx="1040" cy="55" r="145" fill="#3b82f6" opacity=".10" filter="url(#glow)"/>
+  <circle cx="145" cy="330" r="130" fill="#14b8a6" opacity=".08" filter="url(#glow)"/>
+  <path d="M0 292C180 240 310 348 503 302s303-54 447-8 208 16 250-1v67H0Z" fill="#ffffff" opacity=".025"/>
+
+  <g transform="translate(80 83)">
+    <rect width="92" height="92" rx="24" fill="url(#mark)"/>
+    <path d="M28 25h39M28 25v43M28 45h30M42 45v23M58 45v14" fill="none" stroke="#07111f" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="28" cy="68" r="5" fill="#07111f"/>
+    <circle cx="42" cy="68" r="5" fill="#07111f"/>
+    <circle cx="58" cy="59" r="5" fill="#07111f"/>
+  </g>
+
+  <text x="195" y="166" fill="#f8fafc" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="88" font-weight="700" letter-spacing="-5">files</text>
+  <text x="84" y="220" fill="#a5b4cf" font-family="ui-sans-serif, system-ui, -apple-system, sans-serif" font-size="24" letter-spacing=".5">see the tree. read the repo.</text>
+  <g transform="translate(84 251)" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="14">
+    <rect width="118" height="30" rx="15" fill="#2dd4bf" opacity=".13"/>
+    <text x="17" y="20" fill="#5eead4">git-aware</text>
+    <rect x="128" width="102" height="30" rx="15" fill="#60a5fa" opacity=".13"/>
+    <text x="145" y="20" fill="#93c5fd">fast</text>
+    <rect x="240" width="122" height="30" rx="15" fill="#a78bfa" opacity=".13"/>
+    <text x="257" y="20" fill="#c4b5fd">zero-deps</text>
+  </g>
+
+  <g clip-path="url(#window)">
+    <rect x="650" y="55" width="480" height="250" rx="18" fill="#070b16" stroke="#334155" stroke-width="2"/>
+    <rect x="650" y="55" width="480" height="42" fill="#111827"/>
+    <circle cx="677" cy="76" r="6" fill="#fb7185"/>
+    <circle cx="698" cy="76" r="6" fill="#fbbf24"/>
+    <circle cx="719" cy="76" r="6" fill="#34d399"/>
+    <text x="890" y="81" text-anchor="middle" fill="#64748b" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="13">~/code/files</text>
+
+    <g font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="16">
+      <text x="680" y="130" fill="#f8fafc" font-weight="700">files</text>
+      <path d="M687 144v118M687 159h18M687 193h18M687 227h18M687 261h18" stroke="url(#line)" stroke-width="2" fill="none"/>
+      <path d="M705 159v58M705 176h18M705 210h18" stroke="#60a5fa" stroke-width="2" fill="none"/>
+      <text x="714" y="164" fill="#93c5fd">assets</text>
+      <text x="732" y="181" fill="#cbd5e1">banner.svg</text>
+      <text x="714" y="198" fill="#93c5fd">files</text>
+      <text x="732" y="215" fill="#cbd5e1">render.nim</text>
+      <text x="714" y="232" fill="#f8fafc">files.nim</text>
+      <text x="714" y="266" fill="#f8fafc">README.md</text>
+      <text x="1070" y="164" text-anchor="end" fill="#64748b">3 KB</text>
+      <text x="1070" y="181" text-anchor="end" fill="#64748b">9 KB</text>
+      <text x="1070" y="215" text-anchor="end" fill="#64748b">12 KB</text>
+      <text x="1070" y="232" text-anchor="end" fill="#fbbf24">M</text>
+      <text x="1070" y="266" text-anchor="end" fill="#34d399">A</text>
+      <text x="680" y="291" fill="#64748b" font-size="13">3 dirs · 14 files · main · 2 changed</text>
+    </g>
+  </g>
+</svg>

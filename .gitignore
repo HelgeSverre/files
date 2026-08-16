@@ -1,0 +1,17 @@
+# Build output
+/bin/
+/nimcache/
+/.nimcache/
+/tests/test_ignore
+
+# Nim-generated binaries and debug symbols
+*.exe
+*.out
+*.dSYM/
+
+# Local tooling and OS files
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*~
