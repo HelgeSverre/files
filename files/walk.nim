@@ -61,10 +61,10 @@ proc handleEntry(dir, name: string, isDir, isLink: bool, depth: int,
   if depth == 0 and name == ".git": return
   let isHidden = name.startsWith(".")
   let giLit = gi != nil and gi.containsLit(name)
+  let exLit = ex != nil and ex.containsLit(name)
   if getEnv("FILES_DBG") != "":
     inc walkCounters.entries
     if giLit or exLit: inc walkCounters.lits
-  let exLit = ex != nil and ex.containsLit(name)
   let needFull = taint or giLit or exLit
   var isIgn: bool
   if needFull:
@@ -139,7 +139,6 @@ proc walkDirEnum(dir: string, depth: int, taint: bool, giActive, exActive: seq[i
   except OSError:
     discard
 
-var walkCounters* {.threadvar.}: tuple[entries, lits, full: int]
 
 proc collectNode*(dir: string, depth: int, tainted: bool, opts: WalkOptions,
                   visited: var HashSet[(int64, int64)]): Node =
