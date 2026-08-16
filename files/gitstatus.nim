@@ -31,3 +31,18 @@ proc fetchStatuses*(repoRoot: string): Table[string, string] =
     else:
       result[rel] = xy
     inc i
+
+type GitInfo* = object
+  repoRoot*: string
+  statuses*: Table[string, string]
+  branch*: string
+
+proc fetchGit*(start: string): GitInfo =
+  ## Discover the repo root and query status + branch in one shot. Cheap enough
+  ## to run on a background thread while the tree walk happens.
+  result.repoRoot = findRepoRoot(start)
+  if result.repoRoot == "": return
+  result.statuses = fetchStatuses(result.repoRoot)
+  let (b, code) = execCmdEx("git -C " & quoteShell(result.repoRoot) &
+                            " branch --show-current")
+  if code == 0: result.branch = b.strip()

@@ -160,6 +160,20 @@ proc collectNode*(dir: string, depth: int, tainted: bool,
   entries.sort(byName)
   result.children = entries
 
+proc assignStatuses*(root: Node, repoRoot, absRoot: string,
+                     statuses: Table[string, string]) =
+  ## Stamp git status badges onto the tree after the walk, once git has
+  ## finished on its background thread. Tree nodes don't carry their paths, so
+  ## reconstruct them as we descend.
+  if statuses.len == 0: return
+  proc go(n: Node, path: string) =
+    if n.kind != kDir:
+      let rel = relFromRepo(repoRoot, path)
+      if rel in statuses: n.status = statuses[rel]
+    for c in n.children:
+      go(c, path / c.name)
+  go(root, absRoot)
+
 proc summarize*(n: Node, dirs, files: var int, bytes: var int64) =
   case n.kind
   of kDir: inc dirs

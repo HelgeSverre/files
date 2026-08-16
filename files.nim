@@ -1,4 +1,4 @@
-import std/[os, osproc, strutils, tables, terminal]
+import std/[os, osproc, strutils, tables, terminal, threadpool]
 import files/[gitstatus, ignore, interrupt, render, util, walk]
 
 const VersionStr = "files 0.2.0"
@@ -130,13 +130,12 @@ proc main() =
   var repoRoot = ""
   var statuses = initTable[string, string]()
   var branch = ""
+  var gitFv: FlowVar[GitInfo]
   if cli.git:
     repoRoot = findRepoRoot(absRoot)
     if repoRoot != "":
-      statuses = fetchStatuses(repoRoot)
-      let (b, code) = execCmdEx("git -C " & quoteShell(repoRoot) & " branch --show-current")
-      if code == 0: branch = b.strip()
       gitignore.preload(repoRoot, absRoot)
+      gitFv = spawn fetchGit(repoRoot)
 
   let tty = isatty(stdout)
   let color = cli.color and tty
@@ -146,6 +145,12 @@ proc main() =
                           gitignore: gitignore, extra: extra,
                           repoRoot: repoRoot, statuses: statuses)
   let root = collectNode(absRoot, 0, false, ActiveState(), ActiveState(), wopts)
+
+  if cli.git and repoRoot != "":
+    let gi = ^gitFv
+    statuses = gi.statuses
+    branch = gi.branch
+    assignStatuses(root, gi.repoRoot, absRoot, statuses)
 
   var ropts = RenderOptions(color: color, icons: cli.icons, sizes: cli.sizes,
                             termWidth: if termW > 0: termW else: 100000)
