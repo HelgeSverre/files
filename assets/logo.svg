@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="92" height="92" viewBox="0 0 92 92" role="img" aria-labelledby="title desc">
+  <title id="title">files</title>
+  <desc id="desc">A directory tree with three branches on a gradient tile.</desc>
+  <defs>
+    <linearGradient id="mark" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#2dd4bf"/>
+      <stop offset="0.5" stop-color="#60a5fa"/>
+      <stop offset="1" stop-color="#a78bfa"/>
+    </linearGradient>
+  </defs>
+  <rect width="92" height="92" rx="24" fill="url(#mark)"/>
+  <path d="M27 23v46M27 28h35M27 46h43M27 64h33" fill="none" stroke="#07111f" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="64" cy="28" r="6" fill="#07111f"/>
+  <circle cx="72" cy="46" r="6" fill="#07111f"/>
+  <circle cx="62" cy="64" r="6" fill="#07111f"/>
+</svg>

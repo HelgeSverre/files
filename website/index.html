@@ -1,0 +1,325 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="files is a fast, git-aware directory tree for your terminal.">
+  <meta name="theme-color" content="#0b1020">
+  <title>files — a git-aware directory tree</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0b1020;
+      --panel: #070b16;
+      --raised: #111827;
+      --line: #27334a;
+      --text: #f8fafc;
+      --muted: #91a0ba;
+      --teal: #2dd4bf;
+      --blue: #60a5fa;
+      --violet: #a78bfa;
+      --amber: #fbbf24;
+      --green: #34d399;
+    }
+
+    * { box-sizing: border-box; }
+
+    html { background: var(--bg); }
+
+    body {
+      min-height: 100vh;
+      margin: 0;
+      background:
+        radial-gradient(circle at 15% 10%, rgb(45 212 191 / 8%), transparent 28rem),
+        radial-gradient(circle at 85% 70%, rgb(96 165 250 / 9%), transparent 30rem),
+        var(--bg);
+      color: var(--text);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    main {
+      width: min(100% - 32px, 500px);
+      margin-inline: auto;
+      padding: 72px 0 48px;
+    }
+
+    header { margin-bottom: 42px; }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 28px;
+      color: var(--text);
+      text-decoration: none;
+      width: fit-content;
+    }
+
+    .brand-mark {
+      width: 38px;
+      height: 38px;
+      flex: 0 0 auto;
+      display: block;
+      box-shadow: 0 8px 24px rgb(96 165 250 / 16%);
+    }
+
+    .wordmark {
+      font-size: 24px;
+      font-weight: 750;
+      letter-spacing: -1.4px;
+    }
+
+    .eyebrow {
+      display: inline-block;
+      margin-bottom: 14px;
+      color: var(--teal);
+      font-size: 12px;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      max-width: 430px;
+      margin: 0 0 16px;
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      font-size: clamp(38px, 10vw, 54px);
+      line-height: .98;
+      letter-spacing: -.05em;
+    }
+
+    .intro {
+      max-width: 450px;
+      margin: 0;
+      color: var(--muted);
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      font-size: 17px;
+      line-height: 1.6;
+    }
+
+    .terminal {
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: var(--panel);
+      box-shadow: 0 24px 70px rgb(0 0 0 / 32%);
+    }
+
+    .terminal-bar {
+      display: flex;
+      align-items: center;
+      height: 42px;
+      padding: 0 15px;
+      border-bottom: 1px solid #1d293c;
+      background: var(--raised);
+      color: #64748b;
+      font-size: 11px;
+    }
+
+    .dots { display: flex; gap: 6px; }
+
+    .dots span {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+    }
+
+    .dots span:nth-child(1) { background: #fb7185; }
+    .dots span:nth-child(2) { background: var(--amber); }
+    .dots span:nth-child(3) { background: var(--green); }
+
+    .terminal-title {
+      margin: auto;
+      transform: translateX(-20px);
+    }
+
+    .screen {
+      padding: 20px 18px 16px;
+      font-size: clamp(12px, 3.2vw, 14px);
+      line-height: 1.75;
+    }
+
+    .command { margin-bottom: 12px; color: var(--muted); }
+    .prompt { color: var(--teal); }
+    .tree { display: grid; }
+    .tree-line { white-space: pre; }
+    .d1 { color: var(--teal); }
+    .d2 { color: var(--blue); }
+    .d3 { color: var(--violet); }
+    .dir { color: #bfdbfe; font-weight: 650; }
+    .size { float: right; color: #64748b; }
+    .changed { float: right; color: var(--amber); font-weight: 700; }
+    .added { float: right; color: var(--green); font-weight: 700; }
+
+    .pin {
+      display: inline-grid;
+      width: 17px;
+      height: 17px;
+      margin-left: 5px;
+      place-items: center;
+      border: 1px solid #3f4e68;
+      border-radius: 50%;
+      color: #c4b5fd;
+      font-size: 9px;
+      vertical-align: 1px;
+    }
+
+    .summary {
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid #172033;
+      color: #64748b;
+      font-size: 11px;
+    }
+
+    .notes {
+      display: grid;
+      gap: 14px;
+      margin: 22px 0 42px;
+    }
+
+    .note {
+      display: grid;
+      grid-template-columns: 22px 1fr;
+      gap: 10px;
+      color: var(--muted);
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .note-number {
+      display: grid;
+      width: 22px;
+      height: 22px;
+      place-items: center;
+      border-radius: 50%;
+      background: rgb(167 139 250 / 12%);
+      color: #c4b5fd;
+      font: 10px ui-monospace, SFMono-Regular, Menlo, monospace;
+    }
+
+    .note strong { color: var(--text); font-weight: 650; }
+
+    .install {
+      padding-top: 26px;
+      border-top: 1px solid var(--line);
+    }
+
+    .install-label {
+      margin: 0 0 10px;
+      color: var(--muted);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+    }
+
+    .install-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .install code {
+      min-width: 0;
+      flex: 1;
+      overflow-x: auto;
+      padding: 12px 14px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: var(--raised);
+      color: #dbeafe;
+      white-space: nowrap;
+      scrollbar-width: none;
+    }
+
+    .install code::-webkit-scrollbar { display: none; }
+
+    .github {
+      flex: 0 0 auto;
+      padding: 12px 14px;
+      border-radius: 10px;
+      background: var(--text);
+      color: var(--bg);
+      font-size: 13px;
+      font-weight: 750;
+      text-decoration: none;
+      transition: transform 160ms ease, background 160ms ease;
+    }
+
+    .github:hover { transform: translateY(-1px); background: #dbeafe; }
+    .github:focus-visible { outline: 2px solid var(--blue); outline-offset: 3px; }
+
+    footer {
+      margin-top: 48px;
+      color: #526078;
+      font-size: 11px;
+    }
+
+    footer a { color: var(--muted); text-underline-offset: 3px; }
+
+    @media (max-width: 430px) {
+      main { padding-top: 40px; }
+      header { margin-bottom: 32px; }
+      .install-row { align-items: stretch; flex-direction: column; }
+      .github { text-align: center; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      * { scroll-behavior: auto !important; transition: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <a class="brand" href="https://github.com/HelgeSverre/files" aria-label="files on GitHub">
+        <img class="brand-mark" src="../assets/logo.svg" alt="">
+        <span class="wordmark">files</span>
+      </a>
+      <span class="eyebrow">A directory tree with context</span>
+      <h1>See the tree.<br>Read the repo.</h1>
+      <p class="intro">A fast, git-aware <code>tree</code> for your terminal. It respects what you ignore and highlights what changed.</p>
+    </header>
+
+    <section aria-label="Annotated files output">
+      <div class="terminal">
+        <div class="terminal-bar">
+          <span class="dots" aria-hidden="true"><span>&#8203;</span><span>&#8203;</span><span>&#8203;</span></span>
+          <span class="terminal-title">~/code/files</span>
+        </div>
+        <div class="screen">
+          <div class="command"><span class="prompt">$</span> files -L 2</div>
+          <div class="tree" aria-label="Example directory tree">
+            <span class="tree-line">files/</span>
+            <span class="tree-line"><span class="d1">├──</span> <span class="dir">assets/</span></span>
+            <span class="tree-line"><span class="d1">│   </span><span class="d2">└──</span> banner.svg <span class="size">4.4 KB</span></span>
+            <span class="tree-line"><span class="d1">├──</span> <span class="dir">files/</span><span class="pin">1</span></span>
+            <span class="tree-line"><span class="d1">│   </span><span class="d2">├──</span> render.nim <span class="size">6.7 KB</span></span>
+            <span class="tree-line"><span class="d1">│   </span><span class="d2">└──</span> walk.nim <span class="changed">M</span></span>
+            <span class="tree-line"><span class="d1">├──</span> files.nim <span class="size">4.8 KB</span><span class="pin">2</span></span>
+            <span class="tree-line"><span class="d1">└──</span> README.md <span class="added">A</span></span>
+          </div>
+          <div class="summary">3 dirs · 12 files · 46.1 KB · main · 2 changed <span class="pin">3</span></div>
+        </div>
+      </div>
+
+      <div class="notes" aria-label="Feature annotations">
+        <div class="note"><span class="note-number">1</span><span><strong>Gitignore-aware.</strong> Hidden noise stays hidden; <code>-a</code> reveals it when needed.</span></div>
+        <div class="note"><span class="note-number">2</span><span><strong>Readable at a glance.</strong> Depth color, natural sorting, file sizes, and Git status share one compact view.</span></div>
+        <div class="note"><span class="note-number">3</span><span><strong>One useful footer.</strong> Totals, branch, and changed-file count finish the picture.</span></div>
+      </div>
+    </section>
+
+    <section class="install" aria-labelledby="install-title">
+      <p class="install-label" id="install-title">Build &amp; install</p>
+      <div class="install-row">
+        <code>git clone … &amp;&amp; make install</code>
+        <a class="github" href="https://github.com/HelgeSverre/files">GitHub ↗</a>
+      </div>
+    </section>
+
+    <footer>Built in <a href="https://nim-lang.org/">Nim</a>. No runtime dependencies beyond Git for status.</footer>
+  </main>
+</body>
+</html>
