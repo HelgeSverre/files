@@ -114,6 +114,83 @@ proc parseArgs(argv: seq[string]): CliOptions =
   if result.path.len == 0:
     result.path = "."
 
+type RunState = object
+  cli: CliOptions
+  absRoot: string
+  gitignore: IgnoreMatcher
+  extra: IgnoreMatcher
+  repoRoot: string
+  statuses: Table[string, string]
+  branch: string
+  gitJob: ref GitJob
+  gitThread: Thread[ref GitJob]
+  gitRunning: bool
+  root: Node
+
+proc setupMatchers(rs: var RunState) =
+  ## Resolve the target directory, install the interrupt handler, and build
+  ## the gitignore matchers (built-in defaults plus any -I patterns).
+  rs.absRoot = absolutePath(rs.cli.path)
+  if not dirExists(rs.absRoot):
+    fail("no such directory: " & rs.cli.path)
+  interrupt.install()
+  rs.gitignore = newIgnoreMatcher()
+  if rs.cli.defaults:
+    for d in DefaultIgnores:
+      rs.gitignore.addRuleExtra(rs.absRoot, d)
+  rs.extra = newIgnoreMatcher()
+  for g in rs.cli.extraIgnores:
+    rs.extra.addRuleExtra(rs.absRoot, g)
+
+proc startGitFetch(rs: var RunState) =
+  ## Kick off git status + branch on a background thread; the tree walk runs
+  ## concurrently and `finishGit` joins the results afterwards.
+  if not rs.cli.git: return
+  rs.repoRoot = findRepoRoot(rs.absRoot)
+  if rs.repoRoot == "": return
+  rs.gitignore.preload(rs.repoRoot, rs.absRoot)
+  rs.gitJob = new(GitJob)
+  rs.gitJob.start = rs.absRoot
+  createThread(rs.gitThread, gitWorker, rs.gitJob)
+  rs.gitRunning = true
+
+proc walkTree(rs: var RunState) =
+  let wopts = WalkOptions(maxDepth: rs.cli.maxDepth, showAll: rs.cli.showAll,
+                          gitignore: rs.gitignore, extra: rs.extra)
+  let ctx = newWalkContext(wopts, rs.gitignore, rs.extra)
+  rs.root = collectNode(ctx, ActiveState(), ActiveState(), rs.absRoot, 0, false)
+
+proc finishGit(rs: var RunState) =
+  ## Wait for the git thread, then stamp status badges onto the walked tree.
+  if not rs.gitRunning: return
+  joinThread(rs.gitThread)
+  rs.statuses = rs.gitJob.statuses
+  rs.branch = rs.gitJob.branch
+  assignStatuses(rs.root, rs.repoRoot, rs.absRoot, rs.statuses)
+
+proc renderTreeOutput(rs: RunState): string =
+  let tty = isatty(stdout)
+  let color = rs.cli.color and tty
+  let termW = if tty: terminalWidth() else: 0
+  var ropts = RenderOptions(color: color, icons: rs.cli.icons, sizes: rs.cli.sizes,
+                            termWidth: if termW > 0: termW else: 100000)
+  var lines: seq[Line]
+  renderTree(rs.root, ropts, lines)
+  renderOutput(lines, ropts)
+
+proc footer(rs: RunState): string =
+  var dirs, files = 0
+  var bytes = 0'i64
+  summarize(rs.root, dirs, files, bytes)
+  result = $dirs & " dirs · " & $files & " files"
+  if rs.cli.sizes: result.add " · " & humanSize(bytes)
+  var changed = 0
+  for v in rs.statuses.values:
+    if v.len > 0: inc changed
+  if rs.branch.len > 0:
+    result.add " · " & rs.branch
+    if changed > 0: result.add " · " & $changed & " changed"
+
 proc main() =
   let cli = parseArgs(commandLineParams())
   if cli.showHelp:
@@ -122,70 +199,13 @@ proc main() =
   if cli.showVersion:
     stdout.write(VersionStr & "\n")
     quit(0)
-
-  let absRoot = absolutePath(cli.path)
-  if not dirExists(absRoot):
-    fail("no such directory: " & cli.path)
-
-  interrupt.install()
-
-  var gitignore = newIgnoreMatcher()
-  if cli.defaults:
-    for d in DefaultIgnores:
-      gitignore.addRuleExtra(absRoot, d)
-  var extra = newIgnoreMatcher()
-  for g in cli.extraIgnores:
-    extra.addRuleExtra(absRoot, g)
-
-  var repoRoot = ""
-  var statuses = initTable[string, string]()
-  var branch = ""
-  var gitJob = new(GitJob)
-  gitJob.start = absRoot
-  var gitThread: Thread[ref GitJob]
-  var gitRunning = false
-  if cli.git:
-    repoRoot = findRepoRoot(absRoot)
-    if repoRoot != "":
-      gitignore.preload(repoRoot, absRoot)
-      createThread(gitThread, gitWorker, gitJob)
-      gitRunning = true
-
-  let tty = isatty(stdout)
-  let color = cli.color and tty
-  let termW = if tty: terminalWidth() else: 0
-
-  let wopts = WalkOptions(maxDepth: cli.maxDepth, showAll: cli.showAll,
-                          gitignore: gitignore, extra: extra,
-                          repoRoot: repoRoot, statuses: statuses)
-  let root = collectNode(absRoot, 0, false, ActiveState(), ActiveState(), wopts)
-
-  if gitRunning:
-    joinThread(gitThread)
-    statuses = gitJob.statuses
-    branch = gitJob.branch
-    assignStatuses(root, repoRoot, absRoot, statuses)
-
-  var ropts = RenderOptions(color: color, icons: cli.icons, sizes: cli.sizes,
-                            termWidth: if termW > 0: termW else: 100000)
-  var lines: seq[Line]
-  renderTree(root, ropts, lines)
-  let outStr = renderOutput(lines, ropts)
-
-  stdout.write(outStr)
-
-  var dirs, files = 0
-  var bytes = 0'i64
-  summarize(root, dirs, files, bytes)
-  var foot = $dirs & " dirs · " & $files & " files"
-  if cli.sizes: foot.add " · " & humanSize(bytes)
-  var changed = 0
-  for v in statuses.values:
-    if v.len > 0: inc changed
-  if branch.len > 0:
-    foot.add " · " & branch
-    if changed > 0: foot.add " · " & $changed & " changed"
-  stdout.write(foot & "\n")
+  var rs = RunState(cli: cli)
+  setupMatchers(rs)
+  startGitFetch(rs)
+  walkTree(rs)
+  finishGit(rs)
+  stdout.write(renderTreeOutput(rs))
+  stdout.write(footer(rs) & "\n")
 
 when isMainModule:
   main()

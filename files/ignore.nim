@@ -17,22 +17,22 @@ type
 
   Rule = object
     base: string
-    baseComps: int
+    baseComponentCount: int
     pat: Pattern
 
   IgnoreMatcher* = ref object
     rules*: seq[Rule]
     loaded*: HashSet[string]
-    ruleLit: seq[string]
-    litSegs: HashSet[string]
-    simpleAlways: seq[int]
-    complexIdx: seq[int]
+    ruleLiteral: seq[string]
+    literalSegs: HashSet[string]
+    alwaysRules: seq[int]
+    complexRules: seq[int]
     byBase: Table[string, seq[int]]
 
 proc newIgnoreMatcher*(): IgnoreMatcher =
   new(result)
   result.loaded = initHashSet[string]()
-  result.litSegs = initHashSet[string]()
+  result.literalSegs = initHashSet[string]()
   result.byBase = initTable[string, seq[int]]()
 
 # --- matching primitives (operate on a path via (start, len) component spans) ---
@@ -89,6 +89,7 @@ proc segMatch(toks: seq[GlobTok], s: string, cs: int, cl: int): bool =
       if si < cl and s[cs + si] == t.lit: return inner(ti + 1, si + 1)
       return false
     of tkDStar:
+      # Unreachable: `**` is handled at the segment level, never inside one.
       return false
   inner(0, 0)
 
@@ -227,17 +228,17 @@ proc firstLiteralSeg(pat: Pattern): string =
 proc pushRule(m: IgnoreMatcher, base: string, p: Pattern) =
   var spans: array[64, (int, int)]
   let baseComps = componentSpans(base, spans)
-  m.rules.add Rule(base: base, baseComps: baseComps, pat: p)
+  m.rules.add Rule(base: base, baseComponentCount: baseComps, pat: p)
   let lit = firstLiteralSeg(p)
-  m.ruleLit.add lit
+  m.ruleLiteral.add lit
   if lit.len > 0:
-    m.litSegs.incl lit
+    m.literalSegs.incl lit
   else:
     let idx = m.rules.len - 1
     if p.anchored or p.segs.len != 1:
-      m.complexIdx.add idx
+      m.complexRules.add idx
     else:
-      m.simpleAlways.add idx
+      m.alwaysRules.add idx
   m.byBase.mgetOrPut(base, @[]).add m.rules.len - 1
 
 proc addRule*(m: IgnoreMatcher, base: string, line: string) =
@@ -287,9 +288,6 @@ proc isIgnored*(m: IgnoreMatcher, absPath: string, isDir: bool): bool =
   for i in 0 ..< m.rules.len: allIdx.add i
   m.isIgnoredActive(allIdx, absPath, isDir)
 
-proc containsLit*(m: IgnoreMatcher, name: string): bool =
-  m.litSegs.len > 0 and name in m.litSegs
-
 proc baseCovers(base, dir: string): bool =
   if base.len == 0: return true
   if dir == base: return true
@@ -313,9 +311,7 @@ proc ruleIsComplex*(m: IgnoreMatcher, idx: int): bool =
   let r = m.rules[idx]
   r.pat.anchored or r.pat.segs.len != 1
 
-proc ruleLit*(m: IgnoreMatcher, idx: int): string = m.ruleLit[idx]
-
-proc ruleBase*(m: IgnoreMatcher, idx: int): string = m.rules[idx].base
+proc ruleLiteral*(m: IgnoreMatcher, idx: int): string = m.ruleLiteral[idx]
 
 proc isIgnoredActive*(m: IgnoreMatcher, act: seq[int], absPath: string,
                       isDir: bool): bool =
@@ -331,28 +327,28 @@ proc isIgnoredActive*(m: IgnoreMatcher, act: seq[int], absPath: string,
       if absPath.len < base.len: continue
       if not absPath.startsWith(base): continue
       if absPath.len > base.len and not isSep(absPath[base.len]): continue
-    let lit = m.ruleLit[i]
+    let lit = m.ruleLiteral[i]
     if lit.len > 0 and not containsComponent(absPath, lit): continue
-    if r.baseComps >= total: continue
-    if ruleMatchesPath(r.pat, absPath, spans, r.baseComps, total - r.baseComps, isDir):
+    if r.baseComponentCount >= total: continue
+    if ruleMatchesPath(r.pat, absPath, spans, r.baseComponentCount, total - r.baseComponentCount, isDir):
       last = not r.pat.negate
   last
 
 type ActiveState* = object
-  act*: seq[int]
-  lits*: HashSet[string]
-  always*: seq[int]
+  active*: seq[int]
+  literals*: HashSet[string]
+  alwaysRules*: seq[int]
   complex*: bool
 
-proc stateFrom(act: seq[int], m: IgnoreMatcher): ActiveState =
-  result.act = act
-  result.lits = initHashSet[string]()
-  for idx in act:
-    let lit = m.ruleLit[idx]
+proc stateFrom(active: seq[int], m: IgnoreMatcher): ActiveState =
+  result.active = active
+  result.literals = initHashSet[string]()
+  for idx in active:
+    let lit = m.ruleLiteral[idx]
     if lit.len > 0:
-      result.lits.incl lit
+      result.literals.incl lit
     elif not m.ruleIsComplex(idx):
-      result.always.add idx
+      result.alwaysRules.add idx
     else:
       result.complex = true
 
@@ -362,11 +358,12 @@ proc initialState*(m: IgnoreMatcher, absRoot: string): ActiveState =
 proc activeForState*(m: IgnoreMatcher, parentAct: seq[int], dir: string): ActiveState =
   stateFrom(m.activeFor(parentAct, dir), m)
 
-proc entryIgnored*(m: IgnoreMatcher, actv: seq[int], name: string, isDir: bool): bool =
+proc entryIgnored*(m: IgnoreMatcher, active: seq[int], name: string, isDir: bool): bool =
   ## Fast basename check against the active simple-always rules. Callers only
-  ## invoke this when `name` is not in litSegs and the subtree is not tainted.
+  ## invoke this when `name` is not in the active literals and the subtree does
+  ## not require full-precision matching.
   var last = false
-  for idx in actv:
+  for idx in active:
     let r = m.rules[idx]
     if r.pat.dirOnly and not isDir: continue
     let seg = r.pat.segs[0]

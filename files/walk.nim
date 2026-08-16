@@ -24,8 +24,22 @@ type
     showAll*: bool
     gitignore*: IgnoreMatcher
     extra*: IgnoreMatcher
-    repoRoot*: string
-    statuses*: Table[string, string]
+
+  WalkContext* = object
+    ## Invariants shared by every node in a walk.
+    opts: WalkOptions
+    gi: IgnoreMatcher
+    ex: IgnoreMatcher
+
+  DirWalk = object
+    ## Per-directory state threaded through entry handling.
+    ctx: WalkContext
+    dir: string
+    depth: int
+    fullCheck: bool
+    giState: ActiveState
+    exState: ActiveState
+    entries: seq[Node]
 
 proc baseName(p: string): string =
   var p = p
@@ -43,30 +57,35 @@ proc relFromRepo(root, absPath: string): string =
 proc isExec(perms: set[FilePermission]): bool =
   fpUserExec in perms or fpGroupExec in perms or fpOthersExec in perms
 
-proc collectNode*(dir: string, depth: int, tainted: bool,
-                  giState, exState: ActiveState, opts: WalkOptions): Node
+proc newWalkContext*(opts: WalkOptions, gi, ex: IgnoreMatcher): WalkContext =
+  WalkContext(opts: opts, gi: gi, ex: ex)
 
-proc handleEntry(dir, name: string, isDir, isLink: bool, depth: int,
-                 taint: bool, giState, exState: ActiveState, hasStatus: bool,
-                 gi, ex: IgnoreMatcher, opts: WalkOptions,
-                 entries: var seq[Node]) =
-  if depth == 0 and name == ".git": return
+proc collectNode*(ctx: WalkContext, parentGi, parentEx: ActiveState,
+                  dir: string, depth: int, fullCheck: bool): Node
+
+proc handleEntry(w: var DirWalk, name: string, isDir, isLink: bool) =
+  ## Inspect one directory entry: decide if it is hidden/ignored, build its
+  ## node, and recurse into subdirectories.
+  let ctx = w.ctx
+  let gi = ctx.gi
+  let ex = ctx.ex
+  if w.depth == 0 and name == ".git": return
   let isHidden = name.startsWith(".")
-  let giLit = gi != nil and name in giState.lits
-  let exLit = ex != nil and name in exState.lits
-  let needFull = taint or giLit or exLit
+  let giHit = gi != nil and name in w.giState.literals
+  let exHit = ex != nil and name in w.exState.literals
+  let needFull = w.fullCheck or giHit or exHit
   var isIgn: bool
   if needFull:
-    isIgn = (gi != nil and gi.isIgnoredActive(giState.act, dir / name, isDir)) or
-            (ex != nil and ex.isIgnoredActive(exState.act, dir / name, isDir))
+    isIgn = (gi != nil and gi.isIgnoredActive(w.giState.active, w.dir / name, isDir)) or
+            (ex != nil and ex.isIgnoredActive(w.exState.active, w.dir / name, isDir))
   else:
-    isIgn = (gi != nil and gi.entryIgnored(giState.always, name, isDir)) or
-            (ex != nil and ex.entryIgnored(exState.always, name, isDir))
-  if (isHidden or isIgn) and not opts.showAll:
+    isIgn = (gi != nil and gi.entryIgnored(w.giState.alwaysRules, name, isDir)) or
+            (ex != nil and ex.entryIgnored(w.exState.alwaysRules, name, isDir))
+  if (isHidden or isIgn) and not ctx.opts.showAll:
     return
-  let path = dir / name
+  let path = w.dir / name
   if isLink:
-    var n = Node(name: name, kind: kLink, depth: depth + 1,
+    var n = Node(name: name, kind: kLink, depth: w.depth + 1,
                  hidden: isHidden, ignored: isIgn)
     try:
       n.linkTarget = expandSymlink(path)
@@ -78,22 +97,16 @@ proc handleEntry(dir, name: string, isDir, isLink: bool, depth: int,
       n.exec = isExec(fi.permissions)
     except CatchableError:
       discard
-    if hasStatus:
-      let rel = relFromRepo(opts.repoRoot, path)
-      if rel in opts.statuses: n.status = opts.statuses[rel]
-    entries.add n
+    w.entries.add n
   elif isDir:
-    var child = collectNode(path, depth + 1, taint or giLit or exLit,
-                            giState, exState, opts)
+    var child = collectNode(ctx, w.giState, w.exState, path, w.depth + 1,
+                            w.fullCheck or giHit or exHit)
     child.hidden = isHidden
     child.ignored = isIgn
-    child.depth = depth + 1
-    if hasStatus:
-      let rel = relFromRepo(opts.repoRoot, path)
-      if rel in opts.statuses: child.status = opts.statuses[rel]
-    entries.add child
+    child.depth = w.depth + 1
+    w.entries.add child
   else:
-    var n = Node(name: name, kind: kFile, depth: depth + 1,
+    var n = Node(name: name, kind: kFile, depth: w.depth + 1,
                  hidden: isHidden, ignored: isIgn)
     try:
       let li = getFileInfo(path, followSymlink = false)
@@ -101,22 +114,17 @@ proc handleEntry(dir, name: string, isDir, isLink: bool, depth: int,
       n.exec = isExec(li.permissions)
     except CatchableError:
       discard
-    if hasStatus:
-      let rel = relFromRepo(opts.repoRoot, path)
-      if rel in opts.statuses: n.status = opts.statuses[rel]
-    entries.add n
+    w.entries.add n
 
-proc walkDirEnum(dir: string, depth: int, taint: bool, giState, exState: ActiveState,
-                 hasStatus: bool, gi, ex: IgnoreMatcher, opts: WalkOptions,
-                 entries: var seq[Node]) =
+proc walkDirEnum(w: var DirWalk) =
+  ## Portable fallback enumeration for platforms without getattrlistbulk.
   try:
-    for kind, path in walkDir(dir):
+    for kind, path in walkDir(w.dir):
       let name = baseName(path)
       let isDir = kind == pcDir
       let isLink = kind == pcLinkToDir or kind == pcLinkToFile
       try:
-        handleEntry(dir, name, isDir, isLink, depth, taint, giState, exState,
-                    hasStatus, gi, ex, opts, entries)
+        handleEntry(w, name, isDir, isLink)
       except CatchableError:
         # Skip a single problematic entry rather than dropping the rest of the
         # directory (walkDir can raise mid-iteration on Windows).
@@ -124,36 +132,9 @@ proc walkDirEnum(dir: string, depth: int, taint: bool, giState, exState: ActiveS
   except CatchableError:
     discard
 
-proc collectNode*(dir: string, depth: int, tainted: bool,
-                  giState, exState: ActiveState, opts: WalkOptions): Node =
-  result = Node(name: baseName(dir), kind: kDir, depth: depth)
-  let gi = opts.gitignore
-  let ex = opts.extra
-  if gi != nil:
-    gi.loadGitignore(dir)
-  if opts.maxDepth >= 0 and depth >= opts.maxDepth:
-    return
-  let myGi = if gi != nil:
-               (if depth == 0: gi.initialState(dir) else: gi.activeForState(giState.act, dir))
-             else: ActiveState()
-  let myEx = if ex != nil:
-               (if depth == 0: ex.initialState(dir) else: ex.activeForState(exState.act, dir))
-             else: ActiveState()
-  let hasStatus = opts.repoRoot != "" and opts.statuses.len > 0
-  let taint = tainted or myGi.complex or myEx.complex
-  var entries: seq[Node]
-  when defined(macosx):
-    var raw: seq[BulkEntry]
-    if listDirBulk(dir, raw):
-      for e in raw:
-        let isDir = e.kind == okDir
-        let isLink = e.kind == okLink
-        handleEntry(dir, e.name, isDir, isLink, depth, taint, myGi, myEx,
-                    hasStatus, gi, ex, opts, entries)
-    else:
-      walkDirEnum(dir, depth, taint, myGi, myEx, hasStatus, gi, ex, opts, entries)
-  else:
-    walkDirEnum(dir, depth, taint, myGi, myEx, hasStatus, gi, ex, opts, entries)
+proc finishDir(w: var DirWalk, result: Node) =
+  ## Sort a directory's children (dirs first, natural name order) and attach
+  ## them to the result node.
   proc byName(a, b: Node): int =
     let ad = a.kind == kDir
     let bd = b.kind == kDir
@@ -162,8 +143,42 @@ proc collectNode*(dir: string, depth: int, tainted: bool,
     let bg = b.ignored or b.hidden
     if ag != bg: return (if ag: 1 else: -1)
     naturalCompare(a.name, b.name)
-  entries.sort(byName)
-  result.children = entries
+  w.entries.sort(byName)
+  result.children = w.entries
+
+proc collectNode*(ctx: WalkContext, parentGi, parentEx: ActiveState,
+                  dir: string, depth: int, fullCheck: bool): Node =
+  ## Recursively collect `dir` into a Node tree, honoring .gitignore rules.
+  ## `parentGi`/`parentEx` are the active rules for the parent directory; the
+  ## child's rules extend them. `fullCheck` marks subtrees that need
+  ## full-precision matching (an ancestor was a rule literal, or a complex
+  ## rule applies).
+  result = Node(name: baseName(dir), kind: kDir, depth: depth)
+  let gi = ctx.gi
+  let ex = ctx.ex
+  if gi != nil:
+    gi.loadGitignore(dir)
+  if ctx.opts.maxDepth >= 0 and depth >= ctx.opts.maxDepth:
+    return
+  var w = DirWalk(ctx: ctx, dir: dir, depth: depth)
+  w.giState = if gi != nil:
+                (if depth == 0: gi.initialState(dir)
+                 else: gi.activeForState(parentGi.active, dir))
+              else: ActiveState()
+  w.exState = if ex != nil:
+                (if depth == 0: ex.initialState(dir)
+                 else: ex.activeForState(parentEx.active, dir))
+              else: ActiveState()
+  w.fullCheck = fullCheck or w.giState.complex or w.exState.complex
+  when defined(macosx):
+    var raw: seq[BulkEntry]
+    if listDirBulk(dir, raw):
+      for e in raw:
+        handleEntry(w, e.name, e.kind == okDir, e.kind == okLink)
+      finishDir(w, result)
+      return
+  walkDirEnum(w)
+  finishDir(w, result)
 
 proc assignStatuses*(root: Node, repoRoot, absRoot: string,
                      statuses: Table[string, string]) =
