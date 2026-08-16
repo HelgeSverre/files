@@ -51,7 +51,11 @@ jobs:
         shell: bash
         run: |
           curl -fsSL "${{ matrix.nim_url }}" -o nim.pkg
-          tar -xf nim.pkg
+          if [[ "${{ runner.os }}" == "Windows" ]]; then
+            powershell -Command "Expand-Archive -Path nim.pkg -DestinationPath ."
+          else
+            tar -xf nim.pkg
+          fi
           echo "$(pwd)/nim-2.2.8/bin" >> "$GITHUB_PATH"
 
       - name: Unit tests (ignore matcher)
