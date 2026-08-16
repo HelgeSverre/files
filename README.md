@@ -9,7 +9,7 @@
   <p>
     <img src="https://img.shields.io/badge/Nim-2.0%2B-F3D400?style=flat-square&amp;logo=nim&amp;logoColor=111827" alt="Nim 2.0+">
     <img src="https://img.shields.io/badge/dependencies-standard%20library-7C3AED?style=flat-square" alt="Standard library only">
-    <img src="https://img.shields.io/badge/platform-macOS%20%7C%20Linux-14B8A6?style=flat-square" alt="macOS and Linux">
+    <img src="https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows-14B8A6?style=flat-square" alt="macOS, Linux, Windows">
   </p>
 </div>
 
@@ -31,7 +31,7 @@ written in Nim and has no runtime dependencies beyond `git` for status badges.
 
 ## Quick start
 
-Install the latest release binary (macOS or Linux, no Nim needed):
+Install the latest release binary (macOS, Linux, or Windows via Git Bash — no Nim needed):
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/HelgeSverre/files/main/install.sh | bash
