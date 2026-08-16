@@ -17,6 +17,10 @@
 compact depth-gradient with Nerd Font icons and right-aligned file sizes. It is
 written in Nim and has no runtime dependencies beyond `git` for status badges.
 
+<p align="center">
+  <img src="screenshot.png" alt="files — a git-aware tree of a project directory" width="800">
+</p>
+
 ## Highlights
 
 - **Gitignore-aware by default.** Native matching supports negation, anchored
