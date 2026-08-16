@@ -111,6 +111,7 @@ jobs:
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
           path: dist
@@ -124,3 +125,30 @@ jobs:
             --generate-notes
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish Homebrew formula
+        env:
+          HOMEBREW_TOKEN: ${{ secrets.HOMEBREW_TOKEN }}
+        run: |
+          set -euo pipefail
+          version="${GITHUB_REF_NAME#v}"
+          sha_macos_arm64="$(shasum -a 256 dist/files-macos-arm64.tar.gz   | awk '{print $1}')"
+          sha_macos_x64="$(shasum -a 256 dist/files-macos-x86_64.tar.gz  | awk '{print $1}')"
+          sha_linux_x64="$(shasum -a 256 dist/files-linux-x86_64.tar.gz  | awk '{print $1}')"
+          sha_linux_arm64="$(shasum -a 256 dist/files-linux-arm64.tar.gz | awk '{print $1}')"
+          tmp="$(mktemp -d)"
+          git clone --quiet --depth 1 \
+            "https://x-access-token:${HOMEBREW_TOKEN}@github.com/HelgeSverre/homebrew-tap.git" \
+            "$tmp/tap"
+          bash scripts/render-formula.sh "$version" "$sha_macos_arm64" "$sha_macos_x64" \
+            "$sha_linux_x64" "$sha_linux_arm64" > "$tmp/tap/Formula/files.rb"
+          cd "$tmp/tap"
+          if git diff --quiet; then
+            echo "Formula already up to date for v${version}"
+            exit 0
+          fi
+          git add Formula/files.rb
+          git -c user.name="files-release-bot" \
+              -c user.email="files-release-bot@users.noreply.github.com" \
+              commit -m "Update files formula to ${GITHUB_REF_NAME}"
+          git push --quiet origin main
