@@ -122,16 +122,20 @@ jobs:
 
       - name: Create GitHub Release
         run: |
-          gh release create "$GITHUB_REF_NAME" dist/* \
-            --repo "$GITHUB_REPOSITORY" \
-            --title "$GITHUB_REF_NAME" \
-            --generate-notes
+          if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" dist/* --repo "$GITHUB_REPOSITORY" --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" dist/* \
+              --repo "$GITHUB_REPOSITORY" \
+              --title "$GITHUB_REF_NAME" \
+              --generate-notes
+          fi
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Publish Homebrew formula
         env:
-          HOMEBREW_TOKEN: ${{ secrets.HOMEBREW_TOKEN }}
+          HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
         run: |
           set -euo pipefail
           version="${GITHUB_REF_NAME#v}"
@@ -141,7 +145,7 @@ jobs:
           sha_linux_arm64="$(shasum -a 256 dist/files-linux-arm64.tar.gz | awk '{print $1}')"
           tmp="$(mktemp -d)"
           git clone --quiet --depth 1 \
-            "https://x-access-token:${HOMEBREW_TOKEN}@github.com/HelgeSverre/homebrew-tap.git" \
+            "https://x-access-token:${HOMEBREW_TAP_TOKEN}@github.com/HelgeSverre/homebrew-tap.git" \
             "$tmp/tap"
           bash scripts/render-formula.sh "$version" "$sha_macos_arm64" "$sha_macos_x64" \
             "$sha_linux_x64" "$sha_linux_arm64" > "$tmp/tap/Formula/files.rb"
