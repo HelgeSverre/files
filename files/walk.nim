@@ -29,7 +29,7 @@ type
 
 proc baseName(p: string): string =
   var p = p
-  while p.len > 1 and p[^1] == '/':
+  while p.len > 1 and (p[^1] == '/' or p[^1] == '\\'):
     p = p[0 .. ^2]
   extractFilename(p)
 
@@ -37,7 +37,7 @@ proc relFromRepo(root, absPath: string): string =
   if root == "": return ""
   if not absPath.startsWith(root): return ""
   var rel = absPath.substr(root.len)
-  if rel.startsWith("/"): rel = rel[1 .. ^1]
+  if rel.len > 0 and (rel[0] == '/' or rel[0] == '\\'): rel = rel[1 .. ^1]
   rel
 
 proc isExec(perms: set[FilePermission]): bool =

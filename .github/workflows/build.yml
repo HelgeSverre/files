@@ -3,6 +3,7 @@ name: build
 on:
   push:
     tags: ["v*"]
+  pull_request:
   workflow_dispatch:
 
 jobs:
@@ -16,49 +17,70 @@ jobs:
           - os: macos-14
             arch: arm64
             target: macos
-            nim_arch: macosx_arm64
+            exe: ""
             extra: ""
+            nim_url: https://nim-lang.org/download/nim-2.2.8-macosx_arm64.tar.xz
           - os: macos-14
             arch: x86_64
             target: macos
-            nim_arch: macosx_arm64
+            exe: ""
             extra: "--cpu:amd64"
+            nim_url: https://nim-lang.org/download/nim-2.2.8-macosx_arm64.tar.xz
           - os: ubuntu-latest
             arch: x86_64
             target: linux
-            nim_arch: linux_x64
+            exe: ""
             extra: ""
+            nim_url: https://nim-lang.org/download/nim-2.2.8-linux_x64.tar.xz
           - os: ubuntu-24.04-arm
             arch: arm64
             target: linux
-            nim_arch: linux_arm64
+            exe: ""
             extra: ""
-    env:
-      NIM_VERSION: "2.2.8"
+            nim_url: https://nim-lang.org/download/nim-2.2.8-linux_arm64.tar.xz
+          - os: windows-latest
+            arch: x86_64
+            target: windows
+            exe: ".exe"
+            extra: ""
+            nim_url: https://nim-lang.org/download/nim-2.2.8_x64.zip
     steps:
       - uses: actions/checkout@v4
 
       - name: Install Nim
+        shell: bash
         run: |
-          url="https://nim-lang.org/download/nim-${NIM_VERSION}-${{ matrix.nim_arch }}.tar.xz"
-          curl -fsSL "$url" -o nim.tar.xz
-          tar -xf nim.tar.xz
-          echo "$(pwd)/nim-${NIM_VERSION}/bin" >> "$GITHUB_PATH"
+          curl -fsSL "${{ matrix.nim_url }}" -o nim.pkg
+          tar -xf nim.pkg
+          echo "$(pwd)/nim-2.2.8/bin" >> "$GITHUB_PATH"
 
-      - name: Test
+      - name: Unit tests (ignore matcher)
+        shell: bash
         run: nim c -r --hints:off --path:. tests/test_ignore.nim
 
       - name: Build
+        shell: bash
         run: |
           mkdir -p dist
           nim c -d:release --opt:speed ${{ matrix.extra }} \
-            -o:dist/files-${{ matrix.target }}-${{ matrix.arch }} files.nim
+            -o:dist/files-${{ matrix.target }}-${{ matrix.arch }}${{ matrix.exe }} files.nim
+
+      - name: Smoke test
+        shell: bash
+        run: |
+          bin="dist/files-${{ matrix.target }}-${{ matrix.arch }}${{ matrix.exe }}"
+          "$bin" --version | grep -q "^files 0.1.0"
+          "$bin" . -L 1 --no-icons --no-sizes > smoke.txt
+          grep -q "files.nim" smoke.txt
+          "$bin" . -L 1 --no-icons > smoke_sizes.txt
+          grep -q "files.nim" smoke_sizes.txt
+          grep -Eq "[0-9]+ dirs" smoke_sizes.txt
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: files-${{ matrix.target }}-${{ matrix.arch }}
-          path: dist/files-${{ matrix.target }}-${{ matrix.arch }}
+          path: dist/files-${{ matrix.target }}-${{ matrix.arch }}${{ matrix.exe }}
           if-no-files-found: error
 
   release:

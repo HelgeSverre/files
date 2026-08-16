@@ -17,6 +17,7 @@ type
 
   Rule = object
     base: string
+    baseComps: int
     pat: Pattern
 
   IgnoreMatcher* = ref object
@@ -36,13 +37,15 @@ proc newIgnoreMatcher*(): IgnoreMatcher =
 
 # --- matching primitives (operate on a path via (start, len) component spans) ---
 
+proc isSep(ch: char): bool = ch == '/' or ch == '\\'
+
 proc componentSpans(s: string, spans: var array[64, (int, int)]): int =
   var start = 0
   var n = 0
   let L = s.len
   var i = 0
   while i <= L:
-    if i == L or s[i] == '/':
+    if i == L or isSep(s[i]):
       let len = i - start
       if len > 0 and n < 64:
         spans[n] = (start, len)
@@ -134,8 +137,8 @@ proc containsComponent(s, sub: string): bool =
   while true:
     let idx = s.find(sub, start)
     if idx < 0: return false
-    let before = idx == 0 or s[idx - 1] == '/'
-    let after = idx + sub.len == s.len or s[idx + sub.len] == '/'
+    let before = idx == 0 or isSep(s[idx - 1])
+    let after = idx + sub.len == s.len or isSep(s[idx + sub.len])
     if before and after: return true
     start = idx + sub.len
 
@@ -222,7 +225,9 @@ proc firstLiteralSeg(pat: Pattern): string =
 # --- rule ingestion ---
 
 proc pushRule(m: IgnoreMatcher, base: string, p: Pattern) =
-  m.rules.add Rule(base: base, pat: p)
+  var spans: array[64, (int, int)]
+  let baseComps = componentSpans(base, spans)
+  m.rules.add Rule(base: base, baseComps: baseComps, pat: p)
   let lit = firstLiteralSeg(p)
   m.ruleLit.add lit
   if lit.len > 0:
@@ -300,7 +305,7 @@ proc containsLit*(m: IgnoreMatcher, name: string): bool =
 proc baseCovers(base, dir: string): bool =
   if base.len == 0: return true
   if dir == base: return true
-  dir.len > base.len and dir.startsWith(base) and dir[base.len] == '/'
+  dir.len > base.len and dir.startsWith(base) and isSep(dir[base.len])
 
 proc initialActive*(m: IgnoreMatcher, absRoot: string): seq[int] =
   ## Rule indices that apply at the walk root (rules whose base is an ancestor
@@ -337,12 +342,11 @@ proc isIgnoredActive*(m: IgnoreMatcher, act: seq[int], absPath: string,
     if base.len > 0:
       if absPath.len < base.len: continue
       if not absPath.startsWith(base): continue
-      if absPath.len > base.len and absPath[base.len] != '/': continue
+      if absPath.len > base.len and not isSep(absPath[base.len]): continue
     let lit = m.ruleLit[i]
     if lit.len > 0 and not containsComponent(absPath, lit): continue
-    let baseComps = if base == "/": 0 else: base.count('/')
-    if baseComps >= total: continue
-    if ruleMatchesPath(r.pat, absPath, spans, baseComps, total - baseComps, isDir):
+    if r.baseComps >= total: continue
+    if ruleMatchesPath(r.pat, absPath, spans, r.baseComps, total - r.baseComps, isDir):
       last = not r.pat.negate
   last
 
