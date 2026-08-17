@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Readability refactor: `WalkContext`/`DirWalk` context objects (entry handling
+  dropped from 13 args to 4), clarified matcher naming, `main()` split into
+  named phases, and doc comments on the walk recursion contract
+
+### Performance
+- Dropped the dead `ATTR_FILE_TOTALSIZE` request from bulk directory
+  enumeration (~25% faster on large directories) and removed the unused size
+  parsing
+
+### Fixed
+- `isIgnored` (test reference matcher) now delegates to the production
+  `isIgnoredActive` so the two can't diverge again (they disagreed on Windows
+  path separators)
+- Fallback enumeration skips a single bad entry instead of dropping the rest
+  of its directory; bulk errors fall back to `walkDir` instead of silently
+  returning a partial directory
+
 ### Added
 - Per-platform `.tar.gz` archives attached to every release (for Homebrew and
   other package managers)
