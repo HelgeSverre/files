@@ -181,18 +181,23 @@ proc collectNode*(ctx: WalkContext, parentGi, parentEx: ActiveState,
   finishDir(w, result)
 
 proc assignStatuses*(root: Node, repoRoot, absRoot: string,
-                     statuses: Table[string, string]) =
+                     statuses: Table[string, string]): int =
   ## Stamp git status badges onto the tree after the walk, once git has
   ## finished on its background thread. Tree nodes don't carry their paths, so
-  ## reconstruct them as we descend.
-  if statuses.len == 0: return
+  ## reconstruct them as we descend. Returns how many nodes were stamped, which
+  ## scopes the footer's change count to the walked subtree.
+  if statuses.len == 0: return 0
+  var stamped = 0
   proc go(n: Node, path: string) =
     if n.kind != kDir:
       let rel = relFromRepo(repoRoot, path)
-      if rel in statuses: n.status = statuses[rel]
+      if rel in statuses:
+        n.status = statuses[rel]
+        inc stamped
     for c in n.children:
       go(c, path / c.name)
   go(root, absRoot)
+  stamped
 
 proc summarize*(n: Node, dirs, files: var int, bytes: var int64) =
   case n.kind

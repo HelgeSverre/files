@@ -61,7 +61,7 @@ proc humanSize*(n: int64): string =
     if whole >= 100:
       result = $whole & " " & units[u]
     else:
-      let frac = (n * 10 div denom) mod 10
+      let frac = (n mod denom) * 10 div denom
       result = $whole & "." & $frac & " " & units[u]
 
 proc runeWidth*(r: Rune): int =

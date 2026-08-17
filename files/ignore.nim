@@ -39,7 +39,10 @@ proc newIgnoreMatcher*(): IgnoreMatcher =
 
 proc isSep(ch: char): bool = ch == '/' or ch == '\\'
 
-proc componentSpans(s: string, spans: var array[64, (int, int)]): int =
+const MaxPathComponents = 256
+type SpanBuf = array[MaxPathComponents, (int, int)]
+
+proc componentSpans(s: string, spans: var SpanBuf): int =
   var start = 0
   var n = 0
   let L = s.len
@@ -47,7 +50,7 @@ proc componentSpans(s: string, spans: var array[64, (int, int)]): int =
   while i <= L:
     if i == L or isSep(s[i]):
       let len = i - start
-      if len > 0 and n < 64:
+      if len > 0 and n < MaxPathComponents:
         spans[n] = (start, len)
         inc n
       start = i + 1
@@ -93,7 +96,7 @@ proc segMatch(toks: seq[GlobTok], s: string, cs: int, cl: int): bool =
       return false
   inner(0, 0)
 
-proc segListMatch(pat: seq[seq[GlobTok]], s: string, spans: array[64, (int, int)],
+proc segListMatch(pat: seq[seq[GlobTok]], s: string, spans: SpanBuf,
                   ps: int, pc: int): bool =
   proc inner(pi, si: int): bool =
     if pi == pat.len: return si == pc
@@ -112,7 +115,7 @@ proc segListMatch(pat: seq[seq[GlobTok]], s: string, spans: array[64, (int, int)
       return false
   inner(0, 0)
 
-proc ruleMatchesPath(pat: Pattern, s: string, spans: array[64, (int, int)],
+proc ruleMatchesPath(pat: Pattern, s: string, spans: SpanBuf,
                      ps: int, pc: int, isDir: bool): bool =
   if pc == 0: return false
   var minLen = 0
@@ -226,7 +229,7 @@ proc firstLiteralSeg(pat: Pattern): string =
 # --- rule ingestion ---
 
 proc pushRule(m: IgnoreMatcher, base: string, p: Pattern) =
-  var spans: array[64, (int, int)]
+  var spans: SpanBuf
   let baseComps = componentSpans(base, spans)
   m.rules.add Rule(base: base, baseComponentCount: baseComps, pat: p)
   let lit = firstLiteralSeg(p)
@@ -316,7 +319,7 @@ proc ruleLiteral*(m: IgnoreMatcher, idx: int): string = m.ruleLiteral[idx]
 proc isIgnoredActive*(m: IgnoreMatcher, act: seq[int], absPath: string,
                       isDir: bool): bool =
   ## Full matcher restricted to a set of rule indices (already base-scoped).
-  var spans: array[64, (int, int)]
+  var spans: SpanBuf
   let total = componentSpans(absPath, spans)
   if total == 0: return false
   var last = false

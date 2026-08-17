@@ -122,6 +122,7 @@ type RunState = object
   repoRoot: string
   statuses: Table[string, string]
   branch: string
+  changed: int
   gitJob: ref GitJob
   gitThread: Thread[ref GitJob]
   gitRunning: bool
@@ -162,11 +163,12 @@ proc walkTree(rs: var RunState) =
 
 proc finishGit(rs: var RunState) =
   ## Wait for the git thread, then stamp status badges onto the walked tree.
+  ## `changed` counts only badges that landed in the shown subtree.
   if not rs.gitRunning: return
   joinThread(rs.gitThread)
   rs.statuses = rs.gitJob.statuses
   rs.branch = rs.gitJob.branch
-  assignStatuses(rs.root, rs.repoRoot, rs.absRoot, rs.statuses)
+  rs.changed = assignStatuses(rs.root, rs.repoRoot, rs.absRoot, rs.statuses)
 
 proc renderTreeOutput(rs: RunState): string =
   let tty = isatty(stdout)
@@ -184,12 +186,9 @@ proc footer(rs: RunState): string =
   summarize(rs.root, dirs, files, bytes)
   result = $dirs & " dirs · " & $files & " files"
   if rs.cli.sizes: result.add " · " & humanSize(bytes)
-  var changed = 0
-  for v in rs.statuses.values:
-    if v.len > 0: inc changed
   if rs.branch.len > 0:
     result.add " · " & rs.branch
-    if changed > 0: result.add " · " & $changed & " changed"
+    if rs.changed > 0: result.add " · " & $rs.changed & " changed"
 
 proc main() =
   let cli = parseArgs(commandLineParams())
