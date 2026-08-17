@@ -24,6 +24,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fallback enumeration skips a single bad entry instead of dropping the rest
   of its directory; bulk errors fall back to `walkDir` instead of silently
   returning a partial directory
+- Path component matching now handles up to 256 components (was silently
+  truncating deeper paths); `humanSize` no longer overflows on absurd file
+  sizes
+- Footer change count is scoped to the walked subtree (matches the badges
+  shown) instead of reporting the whole repository's changes
 
 ### Added
 - Per-platform `.tar.gz` archives attached to every release (for Homebrew and
