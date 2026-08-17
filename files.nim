@@ -1,7 +1,7 @@
 import std/[os, strutils, tables, terminal, typedthreads]
 import files/[gitstatus, ignore, interrupt, render, util, walk]
 
-const VersionStr = "files 0.2.2"
+const VersionStr = "files 0.2.3"
 
 const DefaultIgnores* = [
   "node_modules/", "target/", "vendor/", "dist/", "build/", "output/",
