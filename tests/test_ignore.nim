@@ -1,4 +1,4 @@
-import std/unittest
+import std/[os, tempfiles, unittest]
 import files/ignore
 
 proc m(): IgnoreMatcher =
@@ -137,3 +137,29 @@ suite "gitignore matcher":
     var matcher = m()
     matcher.addRule("/repo", "cache/ ")
     check matcher.isIgnored("/repo/cache", true)
+
+suite "gitignore walk scope":
+  test "ignored walk root becomes a visibility boundary":
+    let repo = createTempDir("files-ignore-", "")
+    defer: removeDir(repo)
+    let scratch = repo / "scratch"
+    createDir(scratch)
+    writeFile(repo / ".gitignore", "/*\n")
+    writeFile(scratch / ".gitignore", "*.tmp\n")
+
+    var matcher = m()
+    check matcher.preloadForWalk(repo, scratch)
+    check not matcher.isIgnored(scratch / "README.md", false)
+    check matcher.isIgnored(scratch / "cache.tmp", false)
+
+  test "visible walk root keeps repository rules":
+    let repo = createTempDir("files-ignore-", "")
+    defer: removeDir(repo)
+    let src = repo / "src"
+    createDir(src)
+    writeFile(repo / ".gitignore", "*.log\n")
+
+    var matcher = m()
+    check not matcher.preloadForWalk(repo, src)
+    check matcher.isIgnored(src / "debug.log", false)
+    check not matcher.isIgnored(src / "main.nim", false)

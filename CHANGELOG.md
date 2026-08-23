@@ -18,6 +18,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   parsing
 
 ### Fixed
+- Walking a directory that is itself ignored by an ancestor `.gitignore` now
+  treats that directory as a visibility boundary, while still honoring its own
+  and nested ignore files; this prevents ignored scratch/workspace directories
+  from rendering as an empty tree
 - `isIgnored` (test reference matcher) now delegates to the production
   `isIgnoredActive` so the two can't diverge again (they disagreed on Windows
   path separators)

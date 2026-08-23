@@ -149,7 +149,7 @@ proc startGitFetch(rs: var RunState) =
   if not rs.cli.git: return
   rs.repoRoot = findRepoRoot(rs.absRoot)
   if rs.repoRoot == "": return
-  rs.gitignore.preload(rs.repoRoot, rs.absRoot)
+  discard rs.gitignore.preloadForWalk(rs.repoRoot, rs.absRoot)
   rs.gitJob = new(GitJob)
   rs.gitJob.start = rs.absRoot
   createThread(rs.gitThread, gitWorker, rs.gitJob)

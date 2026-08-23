@@ -291,6 +291,24 @@ proc isIgnored*(m: IgnoreMatcher, absPath: string, isDir: bool): bool =
   for i in 0 ..< m.rules.len: allIdx.add i
   m.isIgnoredActive(allIdx, absPath, isDir)
 
+proc preloadForWalk*(m: IgnoreMatcher, repoRoot, absRoot: string): bool =
+  ## Load the .gitignore rules that should apply to a walk rooted at `absRoot`.
+  ## If an ancestor .gitignore ignores the walk root itself, treat `absRoot` as
+  ## a new visibility boundary: skip ancestor rules, but keep its own and any
+  ## nested .gitignore files. Returns true when ancestor rules were skipped.
+  if repoRoot == absRoot:
+    m.loadGitignore(absRoot)
+    return false
+
+  var inherited = newIgnoreMatcher()
+  inherited.preload(repoRoot, absRoot.parentDir)
+  if inherited.isIgnored(absRoot, true):
+    m.loadGitignore(absRoot)
+    return true
+
+  m.preload(repoRoot, absRoot)
+  false
+
 proc baseCovers(base, dir: string): bool =
   if base.len == 0: return true
   if dir == base: return true

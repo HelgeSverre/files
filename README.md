@@ -24,7 +24,9 @@ written in Nim and has no runtime dependencies beyond `git` for status badges.
 ## Highlights
 
 - **Gitignore-aware by default.** Native matching supports negation, anchored
-  paths, directory rules, `**`, wildcards, and nested `.gitignore` files.
+  paths, directory rules, `**`, wildcards, and nested `.gitignore` files. When
+  the inspected directory is itself ignored by an ancestor, it becomes a new
+  visibility boundary so parent rules cannot hide the entire requested tree.
 - **Repository context at a glance.** A single porcelain-status query adds
   staged, modified, untracked, and conflict badges; the footer shows the branch.
 - **Made for terminal scanning.** Depth colors, natural sorting, type-specific
