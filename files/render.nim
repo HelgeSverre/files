@@ -3,6 +3,12 @@ import ./util
 import ./walk
 
 type
+  ColorMode* = enum
+    cmAuto, cmAlways, cmNever
+
+  ColorTheme* = enum
+    ctRainbow, ctBlue, ctPurple, ctGreen, ctRed, ctOrange, ctYellow
+
   Chunk = object
     txt: string
     fg: string
@@ -18,6 +24,7 @@ type
 
   RenderOptions* = object
     color*: bool
+    theme*: ColorTheme
     icons*: bool
     sizes*: bool
     termWidth*: int
@@ -30,14 +37,53 @@ const
   Amber* = "\e[38;2;255;180;80m"
   Magenta* = "\e[38;2;230;130;210m"
 
-proc connectorColor(depth: int): string =
+proc parseColorMode*(value: string): ColorMode =
+  case value.toLowerAscii
+  of "auto": cmAuto
+  of "always": cmAlways
+  of "never": cmNever
+  else:
+    raise newException(ValueError,
+      "invalid color mode: " & value & " (expected auto, always, or never)")
+
+proc colorEnabled*(mode: ColorMode, tty: bool): bool =
+  case mode
+  of cmAuto: tty
+  of cmAlways: true
+  of cmNever: false
+
+proc parseColorTheme*(value: string): ColorTheme =
+  case value.toLowerAscii
+  of "", "default", "rainbow": ctRainbow
+  of "blue": ctBlue
+  of "purple": ctPurple
+  of "green": ctGreen
+  of "red": ctRed
+  of "orange": ctOrange
+  of "yellow": ctYellow
+  else:
+    raise newException(ValueError, "invalid color theme: " & value &
+      " (expected blue, purple, green, red, orange, yellow, or rainbow)")
+
+proc themeHue(theme: ColorTheme, depth: int): float =
   let d = min(depth, 12)
-  let (r, g, b) = hslToRgb(float((215 + d * 32) mod 360), 0.55, 0.62)
+  let base = case theme
+    of ctRainbow, ctBlue: 215
+    of ctPurple: 275
+    of ctGreen: 135
+    of ctRed: 355
+    of ctOrange: 25
+    of ctYellow: 50
+  float((base + d * 32) mod 360)
+
+proc connectorColor(theme: ColorTheme, depth: int): string =
+  let d = min(depth, 12)
+  let (r, g, b) = hslToRgb(theme.themeHue(d), 0.55, 0.62)
   rgb(r, g, b)
 
-proc dirColor(depth: int): string =
+proc dirColor(theme: ColorTheme, depth: int): string =
   let d = min(depth, 12)
-  let (r, g, b) = hslToRgb(float((215 + d * 32) mod 360), 0.5, 0.72)
+  let (r, g, b) = hslToRgb(theme.themeHue(d), 0.5, 0.72)
   rgb(r, g, b)
 
 proc addChunk(l: var Line, txt: string, fg = "", dim = false, bold = false) =
@@ -123,9 +169,10 @@ proc emitNode(n: Node, prefix: seq[Chunk], isLast: bool, opts: RenderOptions,
     line.chunks.add ch
     line.contentLen += ch.w
   let depth = n.depth
-  addChunk(line, if isLast: "└── " else: "├── ", connectorColor(depth))
+  addChunk(line, if isLast: "└── " else: "├── ",
+           connectorColor(opts.theme, depth))
   let isGhost = n.ignored or n.hidden
-  let nameCol = if n.kind == kDir: dirColor(depth) else: ""
+  let nameCol = if n.kind == kDir: dirColor(opts.theme, depth) else: ""
   if opts.icons:
     addChunk(line, iconFor(n), nameCol, dim = isGhost, bold = n.kind == kDir)
     addChunk(line, " ", nameCol)
@@ -155,7 +202,7 @@ proc emitNode(n: Node, prefix: seq[Chunk], isLast: bool, opts: RenderOptions,
       if isLast:
         cp.add Chunk(txt: "    ", w: 4)
       else:
-        cp.add Chunk(txt: "│   ", fg: connectorColor(depth), w: 4)
+        cp.add Chunk(txt: "│   ", fg: connectorColor(opts.theme, depth), w: 4)
     for i, c in n.children:
       emitNode(c, cp, i == n.children.len - 1, opts, lines, budget)
 
@@ -163,7 +210,7 @@ proc renderTree*(root: Node, opts: RenderOptions, lines: var seq[Line]) =
   let reserved = if opts.sizes: 14 else: 0
   let budget = max(opts.termWidth - reserved, 8)
   var line = Line()
-  let rootCol = dirColor(0)
+  let rootCol = dirColor(opts.theme, 0)
   if opts.icons:
     addChunk(line, "\u{F07B}", rootCol, bold = true)
     addChunk(line, " ", rootCol)

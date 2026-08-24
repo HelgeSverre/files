@@ -18,6 +18,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   parsing
 
 ### Fixed
+- Staged and unstaged rename/copy badges now attach to the destination path,
+  and Git status queries are scoped to the inspected subtree instead of the
+  entire repository
 - Walking a directory that is itself ignored by an ancestor `.gitignore` now
   treats that directory as a visibility boundary, while still honoring its own
   and nested ignore files; this prevents ignored scratch/workspace directories
@@ -35,6 +38,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   shown) instead of reporting the whole repository's changes
 
 ### Added
+- Named structural color themes (`blue`, `purple`, `green`, `red`, `orange`,
+  `yellow`, and the existing `rainbow`) via `--theme` or `FILES_COLOR_THEME`;
+  each theme chooses the starting hue for the depth-based color rotation
+- Standard color control via `--color=auto|always|never` and `NO_COLOR`, with
+  `--no-color` retained as an alias
+- Regression suites for CLI configuration, rendering, and Git status parsing
 - Per-platform `.tar.gz` archives attached to every release (for Homebrew and
   other package managers)
 - MIT license, README screenshot

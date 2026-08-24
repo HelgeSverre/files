@@ -27,10 +27,13 @@ run: build
 clean:
     rm -rf bin nimcache
 
-# Run the ignore-matcher test suite.
+# Run all unit and integration test suites.
 [group('test')]
 test: _nim
-    nim c -r --hints:off --path:. tests/test_ignore.nim
+    nim c -r --hints:off --path:. --outdir:bin/tests tests/test_ignore.nim
+    nim c -r --hints:off --path:. --outdir:bin/tests tests/test_options.nim
+    nim c -r --hints:off --path:. --outdir:bin/tests tests/test_render.nim
+    nim c -r --hints:off --path:. --outdir:bin/tests tests/test_gitstatus.nim
 
 # Build and install files to a directory on your PATH.
 [unix]

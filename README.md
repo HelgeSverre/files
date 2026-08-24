@@ -72,11 +72,20 @@ files [options] [path]
 | `-t`, `--sizes` | Show file sizes (default) |
 | `--no-sizes` | Hide file sizes |
 | `--no-icons` | Disable Nerd Font icons |
-| `--no-color` | Disable ANSI colors |
+| `--color <when>` | Colorize output: `auto`, `always`, or `never` |
+| `--no-color` | Alias for `--color=never` |
+| `--theme <name>` | Select `blue`, `purple`, `green`, `red`, `orange`, `yellow`, or `rainbow` |
 | `--no-git` | Skip Git repository and status lookups |
 | `--no-defaults` | Include built-in junk directories such as `node_modules` |
 | `-h`, `--help` | Show help |
 | `-v`, `--version` | Print the version |
+
+Set `FILES_COLOR_THEME` to choose a default theme, for example
+`FILES_COLOR_THEME=green files`. An explicit `--theme` wins over the
+environment. Named themes keep a consistent hue and progressively dim it at
+environment. Each theme selects the starting hue, which then rotates as tree
+depth increases. `files` also honors `NO_COLOR`; use `--color=always` to
+override it or to preserve ANSI colors when piping output.
 
 ## How it works
 
@@ -86,6 +95,7 @@ files/bulkread.nim   batched directory enumeration (Darwin getattrlistbulk)
 files/ignore.nim     gitignore parser and matcher
 files/gitstatus.nim  repository discovery and porcelain parsing
 files/interrupt.nim  SIGINT/SIGTERM handling
+files/options.nim    CLI and environment configuration
 files/walk.nim       tree collection and filtering
 files/render.nim     gradient, icons, layout, and aligned sizes
 files/util.nim       natural sorting, human sizes, and ANSI helpers

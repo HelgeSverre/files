@@ -1,5 +1,5 @@
-import std/[os, strutils, tables, terminal, typedthreads]
-import files/[gitstatus, ignore, interrupt, render, util, walk]
+import std/[os, tables, terminal, typedthreads]
+import files/[gitstatus, ignore, interrupt, options, render, util, walk]
 
 const VersionStr = "files 0.2.4"
 
@@ -9,19 +9,6 @@ const DefaultIgnores* = [
   ".next/", ".nuxt/", ".output/", ".cache/", ".pytest_cache/",
   "*.pyc", "*.pyo", ".DS_Store", "*.class"
 ]
-
-type CliOptions = object
-  path: string
-  showAll: bool
-  maxDepth: int
-  icons: bool
-  color: bool
-  sizes: bool
-  git: bool
-  defaults: bool
-  extraIgnores: seq[string]
-  showHelp: bool
-  showVersion: bool
 
 type GitJob = object
   start: string
@@ -47,7 +34,9 @@ Options:
   -t, --sizes          show file sizes (default)
       --no-sizes       hide file sizes
       --no-icons       disable nerd-font file icons
-      --no-color       disable colors
+      --color <when>   colorize: auto, always, or never
+      --no-color       alias for --color=never
+      --theme <name>   blue, purple, green, red, orange, yellow, or rainbow
       --no-git         do not query git status
       --no-defaults    disable built-in junk ignores (node_modules, target, ...)
   -h, --help           show this help
@@ -57,62 +46,6 @@ Options:
 proc fail(msg: string) =
   stderr.writeLine("files: " & msg)
   quit(1)
-
-proc parseIntArg(a: string): int =
-  try:
-    result = parseInt(a)
-  except ValueError:
-    fail("invalid number: " & a)
-
-proc parseArgs(argv: seq[string]): CliOptions =
-  result.maxDepth = -1
-  result.icons = true
-  result.color = true
-  result.sizes = true
-  result.git = true
-  result.defaults = true
-  var i = 0
-  while i < argv.len:
-    let a = argv[i]
-    case a
-    of "-a", "--all":
-      result.showAll = true
-    of "-h", "--help":
-      result.showHelp = true
-    of "-v", "--version":
-      result.showVersion = true
-    of "-t", "--sizes":
-      result.sizes = true
-    of "--no-sizes":
-      result.sizes = false
-    of "--no-icons":
-      result.icons = false
-    of "--no-color":
-      result.color = false
-    of "--no-git":
-      result.git = false
-    of "--no-defaults":
-      result.defaults = false
-    of "-L", "--depth":
-      inc i
-      if i >= argv.len: fail("missing value for " & a)
-      result.maxDepth = parseIntArg(argv[i])
-    of "-I", "--ignore":
-      inc i
-      if i >= argv.len: fail("missing value for " & a)
-      result.extraIgnores.add argv[i]
-    else:
-      if a.len > 2 and a.startsWith("--depth="):
-        result.maxDepth = parseIntArg(a[8 .. ^1])
-      elif a.len > 0 and a[0] == '-' and a != "-":
-        fail("unknown option: " & a)
-      elif result.path.len == 0:
-        result.path = a
-      else:
-        fail("too many arguments")
-    inc i
-  if result.path.len == 0:
-    result.path = "."
 
 type RunState = object
   cli: CliOptions
@@ -172,9 +105,10 @@ proc finishGit(rs: var RunState) =
 
 proc renderTreeOutput(rs: RunState): string =
   let tty = isatty(stdout)
-  let color = rs.cli.color and tty
+  let color = colorEnabled(rs.cli.colorMode, tty)
   let termW = if tty: terminalWidth() else: 0
-  var ropts = RenderOptions(color: color, icons: rs.cli.icons, sizes: rs.cli.sizes,
+  var ropts = RenderOptions(color: color, theme: rs.cli.theme,
+                            icons: rs.cli.icons, sizes: rs.cli.sizes,
                             termWidth: if termW > 0: termW else: 100000)
   var lines: seq[Line]
   renderTree(rs.root, ropts, lines)
@@ -191,7 +125,12 @@ proc footer(rs: RunState): string =
     if rs.changed > 0: result.add " · " & $rs.changed & " changed"
 
 proc main() =
-  let cli = parseArgs(commandLineParams())
+  let noColor = existsEnv("NO_COLOR") and getEnv("NO_COLOR").len > 0
+  var cli: CliOptions
+  try:
+    cli = parseArgs(commandLineParams(), getEnv("FILES_COLOR_THEME"), noColor)
+  except ValueError:
+    fail(getCurrentExceptionMsg())
   if cli.showHelp:
     stdout.write(usage())
     quit(0)
