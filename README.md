@@ -37,7 +37,13 @@ written in Nim and has no runtime dependencies beyond `git` for status badges.
 
 ## Quick start
 
-Install the latest release binary (macOS, Linux, or Windows via Git Bash — no Nim needed):
+Install via Homebrew (macOS, Linux):
+
+```sh
+brew install helgesverre/tap/files
+```
+
+Or install the latest release binary directly (macOS, Linux, or Windows via Git Bash — no Nim needed):
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/HelgeSverre/files/main/install.sh | bash
