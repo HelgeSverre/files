@@ -74,7 +74,11 @@ jobs:
         shell: bash
         run: |
           bin="dist/files-${{ matrix.target }}-${{ matrix.arch }}${{ matrix.exe }}"
-          "$bin" --version | grep -qE "^files [0-9]+\.[0-9]+"
+          if [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
+            [[ "$("$bin" --version)" == "files ${GITHUB_REF_NAME#v}" ]]
+          else
+            "$bin" --version | grep -qE "^files [0-9]+\.[0-9]+\.[0-9]+$"
+          fi
           "$bin" . -L 1 --no-icons --no-sizes > smoke.txt
           grep -q "files.nim" smoke.txt
           "$bin" . -L 1 --no-icons > smoke_sizes.txt

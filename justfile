@@ -1,4 +1,4 @@
-version := "0.2.0"
+version := `cat VERSION`
 bin := "bin/files"
 
 # List recipes.
@@ -50,9 +50,31 @@ install dest="~/.local/bin": build
 [group('install')]
 uninstall dest="~/.local/bin":
     rm -f {{dest}}/files
+
+# Uninstall then install.
+[unix]
+[group('install')]
+reinstall dest="~/.local/bin": (uninstall dest) (install dest)
     @echo "Removed {{dest}}/files"
 
-# Cut a release: bump the embedded version, tag, and push. CI builds the
+# Bump major/minor/patch and cut a release. Usage: `just bump patch` (default)
+[group('release')]
+bump level="patch":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    current="{{version}}"
+    IFS=. read -r major minor patch <<< "$current"
+    case "{{level}}" in
+      major) major=$((major + 1)); minor=0; patch=0 ;;
+      minor) minor=$((minor + 1)); patch=0 ;;
+      patch) patch=$((patch + 1)) ;;
+      *) echo "✗ unknown level '{{level}}' (expected major, minor, or patch)" >&2; exit 1 ;;
+    esac
+    new="$major.$minor.$patch"
+    echo "bumped $current -> $new"
+    just release "$new"
+
+# Cut a release: write VERSION, commit, tag, and push. CI builds the
 # platform binaries and publishes the GitHub Release. Usage: `just release 0.3.0`
 [group('release')]
 release version:
@@ -60,9 +82,8 @@ release version:
     set -euo pipefail
     if ! git diff-index --quiet HEAD --; then echo "✗ working tree is dirty, commit or stash first" >&2; exit 1; fi
     if [ "$(git rev-parse --abbrev-ref HEAD)" != "main" ]; then echo "✗ not on main branch" >&2; exit 1; fi
-    # Bump the embedded version string so `files --version` matches the tag.
-    perl -pi -e 's/const VersionStr = "files [0-9.]+/const VersionStr = "files {{version}}/' files.nim
-    git add files.nim
+    echo "{{version}}" > VERSION
+    git add VERSION
     git commit -m "Bump version to {{version}}"
     git tag -a "v{{version}}" -m "files v{{version}}"
     git push origin main

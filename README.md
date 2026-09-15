@@ -114,5 +114,6 @@ macOS (arm64 + x86_64) and Linux (arm64 + x86_64) via GitHub Actions — see
 just test    # compile and run the matcher suite
 just build   # create an optimized binary at bin/files
 just run     # build and inspect this repository
-just release 0.3.0   # bump version, tag, and push (CI publishes binaries)
+just release 0.3.0   # write VERSION, tag, and push (CI publishes binaries)
+just bump minor      # same, but computes the next patch/minor/major for you
 ```
