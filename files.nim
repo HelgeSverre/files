@@ -1,5 +1,5 @@
 import std/[os, tables, terminal, typedthreads]
-import files/[gitstatus, ignore, interrupt, options, render, util, walk]
+import files/[completions, gitstatus, ignore, interrupt, options, render, util, walk]
 
 const VersionStr = "files 0.2.5"
 
@@ -21,27 +21,7 @@ proc gitWorker(job: ref GitJob) {.thread.} =
   job.branch = gi.branch
 
 proc usage(): string =
-  """
-files — a git-aware, pretty directory tree.
-
-Usage:
-  files [options] [path]
-
-Options:
-  -a, --all            show hidden files and gitignored entries (ghosted)
-  -L, --depth <n>      limit recursion depth
-  -I, --ignore <glob>  extra ignore pattern (repeatable)
-  -t, --sizes          show file sizes (default)
-      --no-sizes       hide file sizes
-      --no-icons       disable nerd-font file icons
-      --color <when>   colorize: auto, always, or never
-      --no-color       alias for --color=never
-      --theme <name>   blue, purple, green, red, orange, yellow, or rainbow
-      --no-git         do not query git status
-      --no-defaults    disable built-in junk ignores (node_modules, target, ...)
-  -h, --help           show this help
-  -v, --version        print version
-"""
+  formatUsage()
 
 proc fail(msg: string) =
   stderr.writeLine("files: " & msg)
@@ -131,6 +111,13 @@ proc main() =
     cli = parseArgs(commandLineParams(), getEnv("FILES_COLOR_THEME"), noColor)
   except ValueError:
     fail(getCurrentExceptionMsg())
+  if cli.completionShell.len > 0:
+    try:
+      let shellKind = parseShellKind(cli.completionShell)
+      stdout.write(generateCompletion(shellKind))
+      quit(0)
+    except ValueError:
+      fail(getCurrentExceptionMsg())
   if cli.showHelp:
     stdout.write(usage())
     quit(0)

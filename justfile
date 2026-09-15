@@ -34,6 +34,7 @@ test: _nim
     nim c -r --hints:off --path:. --outdir:bin/tests tests/test_options.nim
     nim c -r --hints:off --path:. --outdir:bin/tests tests/test_render.nim
     nim c -r --hints:off --path:. --outdir:bin/tests tests/test_gitstatus.nim
+    nim c -r --hints:off --path:. --outdir:bin/tests tests/test_completions.nim
 
 # Build and install files to a directory on your PATH.
 [unix]
