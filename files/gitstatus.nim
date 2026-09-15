@@ -1,4 +1,4 @@
-import std/[os, osproc, tables, strutils]
+import std/[os, osproc, streams, tables, strutils]
 
 proc findRepoRoot*(start: string): string =
   var d = absolutePath(start)
@@ -27,16 +27,24 @@ proc parsePorcelainStatuses*(outp: string): Table[string, string] =
       inc i
     inc i
 
+proc runGit(repoRoot: string, args: seq[string]): (string, int) =
+  # execCmdEx reads line-by-line and on Windows drops NUL bytes, which breaks
+  # `-z` output; read the pipe raw instead.
+  let p = startProcess("git", args = @["-C", repoRoot] & args,
+                       options = {poUsePath, poStdErrToStdOut})
+  defer: p.close()
+  result[0] = p.outputStream.readAll()
+  result[1] = p.waitForExit()
+
 proc fetchStatuses*(repoRoot: string, scope = ""): Table[string, string] =
   result = initTable[string, string]()
   if repoRoot == "": return
-  var cmd = "git -C " & quoteShell(repoRoot) &
-            " status --porcelain=v1 -z --untracked-files=all"
+  var args = @["status", "--porcelain=v1", "-z", "--untracked-files=all"]
   if scope.len > 0:
     let relScope = relativePath(scope, repoRoot).replace('\\', '/')
     if relScope != "." and not relScope.startsWith(".."):
-      cmd.add " -- " & quoteShell(relScope)
-  let (outp, code) = execCmdEx(cmd)
+      args.add ["--", relScope]
+  let (outp, code) = runGit(repoRoot, args)
   if code == 0:
     result = parsePorcelainStatuses(outp)
 
@@ -51,6 +59,5 @@ proc fetchGit*(start: string): GitInfo =
   result.repoRoot = findRepoRoot(start)
   if result.repoRoot == "": return
   result.statuses = fetchStatuses(result.repoRoot, start)
-  let (b, code) = execCmdEx("git -C " & quoteShell(result.repoRoot) &
-                            " branch --show-current")
+  let (b, code) = runGit(result.repoRoot, @["branch", "--show-current"])
   if code == 0: result.branch = b.strip()
