@@ -78,9 +78,14 @@ release version:
     set -euo pipefail
     if ! git diff-index --quiet HEAD --; then echo "✗ working tree is dirty, commit or stash first" >&2; exit 1; fi
     if [ "$(git rev-parse --abbrev-ref HEAD)" != "main" ]; then echo "✗ not on main branch" >&2; exit 1; fi
+    if git rev-parse -q --verify "refs/tags/v{{version}}" >/dev/null; then echo "✗ tag v{{version}} already exists" >&2; exit 1; fi
     echo "{{version}}" > VERSION
-    git add VERSION
-    git commit -m "Bump version to {{version}}"
+    if git diff --quiet -- VERSION; then
+      echo "VERSION already {{version}}, tagging HEAD"
+    else
+      git add VERSION
+      git commit -m "Bump version to {{version}}"
+    fi
     git tag -a "v{{version}}" -m "files v{{version}}"
     git push origin main
     git push origin "v{{version}}"
