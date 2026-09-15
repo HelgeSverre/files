@@ -40,7 +40,7 @@ const ShellChoices* = @["zsh", "bash", "fish", "nu"]
 const OptionSpecs*: seq[OptionSpec] = @[
   OptionSpec(shortName: "-a", longName: "--all", description: "show hidden files and gitignored entries (ghosted)", argKind: akNone),
   OptionSpec(shortName: "-L", longName: "--depth", description: "limit recursion depth", argKind: akInt, argName: "n"),
-  OptionSpec(shortName: "-R", longName: "--root", description: "alias for --depth=1 --no-git", argKind: akNone),
+  OptionSpec(shortName: "", longName: "--root", description: "alias for --depth=1 --no-git", argKind: akNone),
   OptionSpec(shortName: "-I", longName: "--ignore", description: "extra ignore pattern (repeatable)", argKind: akString, argName: "glob", repeatable: true),
   OptionSpec(shortName: "-t", longName: "--sizes", description: "show file sizes (default)", argKind: akNone),
   OptionSpec(shortName: "", longName: "--no-sizes", description: "hide file sizes", argKind: akNone),

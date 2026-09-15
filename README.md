@@ -68,6 +68,7 @@ files [options] [path]
 | --- | --- |
 | `-a`, `--all` | Show hidden and gitignored entries, rendered as ghosts |
 | `-L`, `--depth <n>` | Limit recursion depth |
+| `--root` | Alias for `--depth=1 --no-git` |
 | `-I`, `--ignore <glob>` | Add an ignore pattern; may be repeated |
 | `-t`, `--sizes` | Show file sizes (default) |
 | `--no-sizes` | Hide file sizes |

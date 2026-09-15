@@ -52,10 +52,6 @@ suite "CLI options":
     check opts.maxDepth == 1
     check not opts.git
 
-    let optsShort = parseArgs(@["-R"])
-    check optsShort.maxDepth == 1
-    check not optsShort.git
-
   test "completion options parse":
     let opts1 = parseArgs(@["--completions", "zsh"])
     check opts1.completionShell == "zsh"

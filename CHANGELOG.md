@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- `-R`, `--root` flag: alias for `--depth=1 --no-git`
+- `--root` flag: alias for `--depth=1 --no-git`
 - `--completions <shell>` (alias `--completion`): generate shell completion
   scripts for zsh, bash, fish, and nu
 
