@@ -6,16 +6,16 @@ bin := "bin/files"
 default:
     @just --list
 
-# Ensure the Nim compiler is available.
+# Ensure the Nim toolchain is available.
 [private]
 _nim:
     @command -v nim >/dev/null 2>&1 || { echo "files: nim not found — install it from https://nim-lang.org/install.html" >&2; exit 1; }
+    @command -v nimble >/dev/null 2>&1 || { echo "files: nimble not found — it ships with Nim, check your PATH" >&2; exit 1; }
 
 # Build the optimized binary at bin/files.
 [group('build')]
 build: _nim
-    mkdir -p bin
-    nim c -d:release --opt:speed -o:{{bin}} files.nim
+    nimble build -d:release --opt:speed
 
 # Build and run files in the current directory.
 [group('run')]
@@ -30,11 +30,7 @@ clean:
 # Run all unit and integration test suites.
 [group('test')]
 test: _nim
-    nim c -r --hints:off --path:. --outdir:bin/tests tests/test_ignore.nim
-    nim c -r --hints:off --path:. --outdir:bin/tests tests/test_options.nim
-    nim c -r --hints:off --path:. --outdir:bin/tests tests/test_render.nim
-    nim c -r --hints:off --path:. --outdir:bin/tests tests/test_gitstatus.nim
-    nim c -r --hints:off --path:. --outdir:bin/tests tests/test_completions.nim
+    nimble test
 
 # Build and install files to a directory on your PATH.
 [unix]

@@ -59,9 +59,9 @@ jobs:
           fi
           echo "$(pwd)/nim-2.2.8/bin" >> "$GITHUB_PATH"
 
-      - name: Unit tests (ignore matcher)
+      - name: Tests
         shell: bash
-        run: nim c -r --hints:off --path:. tests/test_ignore.nim
+        run: nimble test
 
       - name: Build
         shell: bash

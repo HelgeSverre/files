@@ -100,7 +100,9 @@ files/options.nim    CLI and environment configuration
 files/walk.nim       tree collection and filtering
 files/render.nim     gradient, icons, layout, and aligned sizes
 files/util.nim       natural sorting, human sizes, and ANSI helpers
-tests/               matcher tests
+tests/               unit and integration tests (`nimble test`)
+files.nimble         package manifest; version is read from VERSION
+config.nims          shared compiler flags (module path, test output dir)
 ```
 
 On macOS, directory enumeration uses `getattrlistbulk`; other platforms fall
@@ -111,8 +113,8 @@ macOS (arm64 + x86_64) and Linux (arm64 + x86_64) via GitHub Actions — see
 ## Development
 
 ```sh
-just test    # compile and run the matcher suite
-just build   # create an optimized binary at bin/files
+just test    # run all test suites (wraps `nimble test`)
+just build   # create an optimized binary at bin/files (wraps `nimble build`)
 just run     # build and inspect this repository
 just release 0.3.0   # write VERSION, tag, and push (CI publishes binaries)
 just bump minor      # same, but computes the next patch/minor/major for you
