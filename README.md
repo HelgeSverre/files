@@ -1,148 +1,268 @@
-<div align="center">
-  <img src="assets/banner.svg" alt="files — see the tree, read the repo" width="100%">
+# Files
 
-  <p>
-    <strong>A fast, git-aware directory tree for your terminal.</strong><br>
-    The familiar shape of <code>tree</code>, with repository context built in.
-  </p>
+A directory tree for your terminal, with file sizes, folder colors, and Git
+status. Files respects `.gitignore` and skips common build and dependency
+folders by default. It works on macOS, Linux, and Windows.
 
-  <p>
-    <img src="https://img.shields.io/badge/Nim-2.0%2B-F3D400?style=flat-square&amp;logo=nim&amp;logoColor=111827" alt="Nim 2.0+">
-    <img src="https://img.shields.io/badge/dependencies-standard%20library-7C3AED?style=flat-square" alt="Standard library only">
-    <img src="https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows-14B8A6?style=flat-square" alt="macOS, Linux, Windows">
-  </p>
-</div>
+```sh
+files                  # current directory
+files ~/code/wardriver # another directory
+files --compact       # fold long folder chains onto one row
+```
 
-`files` respects `.gitignore`, annotates working-tree changes, and renders a
-compact depth-gradient with Nerd Font icons and right-aligned file sizes. It is
-written in Nim and has no runtime dependencies beyond `git` for status badges.
+![Files showing a project tree with file sizes and Git status](assets/screenshots/overview.png)
 
-<p align="center">
-  <img src="screenshot.png" alt="files — a git-aware tree of a project directory" width="800">
-</p>
+## Install
 
-## Highlights
-
-- **Gitignore-aware by default.** Native matching supports negation, anchored
-  paths, directory rules, `**`, wildcards, and nested `.gitignore` files. When
-  the inspected directory is itself ignored by an ancestor, it becomes a new
-  visibility boundary so parent rules cannot hide the entire requested tree.
-- **Repository context at a glance.** A single porcelain-status query adds
-  staged, modified, untracked, and conflict badges; the footer shows the branch.
-- **Made for terminal scanning.** Depth colors, natural sorting, type-specific
-  icons, aligned sizes, and terminal-width truncation keep large trees readable.
-- **Safe around symlinks.** Linked directories are displayed, never traversed.
-- **Useful without Git.** Point it at any directory or pass `--no-git` for a
-  standalone tree viewer.
-
-## Quick start
-
-Install via Homebrew (macOS, Linux):
+With Homebrew on macOS or Linux:
 
 ```sh
 brew install helgesverre/tap/files
 ```
 
-Or install the latest release binary directly (macOS, Linux, or Windows via Git Bash — no Nim needed):
+Or download the latest binary with the installer. This also works in Git Bash
+on Windows; you do not need Nim installed.
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/HelgeSverre/files/main/install.sh | bash
 ```
 
-Or build from source (requires [Nim 2.0+](https://nim-lang.org/install.html) and [`just`](https://github.com/casey/just)):
+The folder and file icons need a [Nerd Font](https://www.nerdfonts.com/).
+If your terminal shows boxes instead of icons, use `--no-icons`.
+Git is optional; without it, Files shows the tree without status badges.
+
+## Choose how much to show
+
+### Limit the depth
+
+Use `-L` (or `--depth`) to stop after a given number of levels below the
+requested directory. `files -L 2` shows its children and their children.
+
+For a quick look at the top level, `--root` is shorthand for
+`--depth=1 --no-git`:
 
 ```sh
-git clone https://github.com/HelgeSverre/files.git
-cd files
-just install       # builds and copies files to ~/.local/bin
-
-files              # inspect the current directory
-files -L 2 ~/code  # show two levels under ~/code
-files -a            # reveal hidden and ignored entries
+files --root
 ```
 
-`just install` expects `~/.local/bin` to be on your `PATH`. To build without
-installing, run `just build` and use `./bin/files`.
+![Top-level folders and files with the root flag](assets/screenshots/depth.png)
 
-## Usage
+### Fold long folder paths
+
+`--compact` puts consecutive folders on one row when each contains exactly
+one visible child and that child is another folder. This is useful for Java
+and Kotlin package trees.
+
+Without compaction:
+
+```sh
+files core
+```
+
+![Expanded Kotlin package folders, with each folder on its own row](assets/screenshots/expanded.png)
+
+With compaction:
+
+```sh
+files --compact core
+```
+
+![The same Kotlin tree with compact paths and a separate color for each folder segment](assets/screenshots/compact.png)
+
+Every folder name keeps its depth color. Branches, files, and symlinks stop a
+chain. The requested root stays on its own row, and hidden or ignored folders
+stay separate from visible ones. Filtering happens before compaction.
+
+`--depth` still counts actual folders, and the footer still counts all
+collected directories, including those folded onto one row.
+
+Compaction is off by default. To make it your default, add this to your shell
+configuration:
+
+```sh
+export FILES_COMPACT=1
+```
+
+Use `--no-compact` to expand folders for one command. Explicit flags override
+the environment; if both flags appear, the last one wins. `FILES_COMPACT`
+also accepts `0`, `true/false`, `yes/no`, and `on/off`, without regard to case.
+
+### Show hidden and ignored entries
+
+Files normally hides dotfiles, entries matched by `.gitignore`, and common
+generated folders such as `node_modules`, `build`, and `target`. Use `-a`
+(or `--all`) to show them in dim text:
+
+```sh
+files -a -L 2
+```
+
+![Hidden dotfiles and the ignored build folder shown in dim text](assets/screenshots/all.png)
+
+To include built-in ignored folders while still respecting `.gitignore`, use
+`--no-defaults`. A folder explicitly ignored by `.gitignore` remains hidden
+unless you also use `-a`.
+
+Add your own exclusions with `-I` or `--ignore`. Quote globs so your shell
+does not expand them, and repeat the flag for multiple patterns:
+
+```sh
+files -I '*.lock' -I 'coverage/'
+```
+
+## Change the appearance
+
+### Colors
+
+Folder and connector colors change with depth. The default theme is
+`rainbow`; `--theme` changes the starting color. Choices are `blue`, `purple`,
+`green`, `red`, `orange`, `yellow`, and `rainbow`.
+
+```sh
+files --compact --theme purple core
+```
+
+![Compact paths using the purple theme](assets/screenshots/theme.png)
+
+Set a default with `export FILES_COLOR_THEME=purple`. An explicit `--theme`
+takes precedence.
+
+Colors are enabled automatically in a terminal and omitted when output is
+piped. Use `--color=always` to keep colors in a pipe, or `--color=never`
+(or `--no-color`) to turn them off. Files also honors `NO_COLOR`;
+`--color=always` overrides it.
+
+### Icons and sizes
+
+Use `--no-icons` for a terminal without a Nerd Font, and `--no-sizes` for a
+narrower tree. File sizes are enabled by default; `-t` or `--sizes` turns them
+back on.
+
+```sh
+files -L 2 --no-icons --no-sizes --no-color --no-git
+```
+
+![A plain directory tree without icons, sizes, colors, or Git information](assets/screenshots/plain.png)
+
+## Read Git status
+
+Files adds badges beside changed files and shows the branch in the footer.
+The overview screenshot shows a staged addition (`[A]`), an unstaged edit
+(`[M]`), and an untracked file (`[??]`). Staged changes are green; unstaged
+changes are red. Conflicts use `[!]`.
+
+Use `--no-git` to skip Git lookups. Symlinks are shown with their targets and
+are never traversed.
+
+## All flags
 
 ```text
 files [options] [path]
 ```
 
-| Flag | Meaning |
+The path defaults to the current directory.
+
+| Flag | Effect |
 | --- | --- |
-| `-a`, `--all` | Show hidden and gitignored entries, rendered as ghosts |
-| `-L`, `--depth <n>` | Limit recursion depth |
-| `--root` | Alias for `--depth=1 --no-git` |
-| `-I`, `--ignore <glob>` | Add an ignore pattern; may be repeated |
+| `-a`, `--all` | Show hidden and ignored entries in dim text |
+| `-L`, `--depth <n>` | Stop after `n` directory levels |
+| `--root` | Show one level and skip Git (`--depth=1 --no-git`) |
+| `-I`, `--ignore <glob>` | Exclude another pattern; repeat as needed |
+| `--compact` | Fold single-child folder chains onto one row |
+| `--no-compact` | Show each folder on its own row (default) |
 | `-t`, `--sizes` | Show file sizes (default) |
 | `--no-sizes` | Hide file sizes |
-| `--compact` | Combine single-child folder chains into one path |
-| `--no-compact` | Show each folder on its own row (default) |
-| `--no-icons` | Disable Nerd Font icons |
-| `--color <when>` | Colorize output: `auto`, `always`, or `never` |
-| `--no-color` | Alias for `--color=never` |
-| `--theme <name>` | Select `blue`, `purple`, `green`, `red`, `orange`, `yellow`, or `rainbow` |
-| `--no-git` | Skip Git repository and status lookups |
-| `--no-defaults` | Include built-in junk directories such as `node_modules` |
+| `--no-icons` | Hide Nerd Font icons |
+| `--color <when>` | `auto` (default), `always`, or `never` |
+| `--no-color` | Same as `--color=never` |
+| `--theme <name>` | Choose the starting color for the depth gradient |
+| `--no-git` | Skip Git status and branch lookups |
+| `--no-defaults` | Disable built-in ignore patterns; keep `.gitignore` rules |
+| `--completions <shell>`, `--completion <shell>` | Generate Zsh, Bash, Fish, or Nushell completions |
 | `-h`, `--help` | Show help |
-| `-v`, `--version` | Print the version |
+| `-v`, `--version` | Show the installed version |
 
-Set `FILES_COLOR_THEME` to choose a default theme, for example
-`FILES_COLOR_THEME=green files`. An explicit `--theme` wins over the
-environment. Named themes keep a consistent hue and progressively dim it at
-environment. Each theme selects the starting hue, which then rotates as tree
-depth increases. `files` also honors `NO_COLOR`; use `--color=always` to
-override it or to preserve ANSI colors when piping output.
+## Shell completions
 
-### Compact folders
+Generate completions with `files --completions <shell>`.
 
-```sh
-files --compact ~/code/wardriver
-export FILES_COMPACT=1  # enable by default; --no-compact overrides it
-```
-
-With `--compact`, consecutive folders with exactly one visible child folder
-share a row, for example `src/main/kotlin/no/helge/fieldscan/core/`. Each folder
-segment keeps its original depth color. Branches, files, symlinks, and changes
-in hidden/ignored styling stop the chain; the requested root stays on its own
-row. Filtering happens first, so ignored entries do not prevent compaction.
-`--depth` still limits real filesystem depth, and footer counts still include
-all collected directories. File sizes and Git badges are unchanged.
-
-Compaction is off by default. `FILES_COMPACT` accepts `1/0`, `true/false`,
-`yes/no`, or `on/off` (case insensitive). Explicit CLI flags override it;
-when both switches occur, the last wins. Shell completions include both flags.
-
-## How it works
-
-```text
-files.nim            CLI entry point
-files/bulkread.nim   batched directory enumeration (Darwin getattrlistbulk)
-files/ignore.nim     gitignore parser and matcher
-files/gitstatus.nim  repository discovery and porcelain parsing
-files/interrupt.nim  SIGINT/SIGTERM handling
-files/options.nim    CLI and environment configuration
-files/walk.nim       tree collection and filtering
-files/render.nim     gradient, icons, layout, and aligned sizes
-files/util.nim       natural sorting, human sizes, and ANSI helpers
-tests/               unit and integration tests (`nimble test`)
-files.nimble         package manifest; version is read from VERSION
-config.nims          shared compiler flags (module path, test output dir)
-```
-
-On macOS, directory enumeration uses `getattrlistbulk`; other platforms fall
-back to Nim's portable directory walker. Tagged releases build binaries for
-macOS (arm64 + x86_64) and Linux (arm64 + x86_64) via GitHub Actions — see
-`.github/workflows/build.yml`.
-
-## Development
+For Zsh, save the script as `_files_cli` in a directory on your `fpath`.
+**Do not name it `_files`**: that would override Zsh's own file completion
+function. If you use `~/.zsh/completions`:
 
 ```sh
-just test    # run all test suites (wraps `nimble test`)
-just build   # create an optimized binary at bin/files (wraps `nimble build`)
-just run     # build and inspect this repository
-just release 0.3.0   # write VERSION, tag, and push (CI publishes binaries)
-just bump minor      # same, but computes the next patch/minor/major for you
+mkdir -p ~/.zsh/completions
+files --completions zsh > ~/.zsh/completions/_files_cli
 ```
+
+Add that directory to `fpath` before your existing `compinit` call. If your
+shell has no completion setup yet, add these lines to `~/.zshrc`:
+
+```sh
+fpath=(~/.zsh/completions $fpath)
+autoload -Uz compinit
+compinit
+```
+
+In an already-open shell, reload the completion file after replacing it:
+
+```sh
+source ~/.zsh/completions/_files_cli
+```
+
+For Bash, load it in your shell configuration:
+
+```sh
+eval "$(files --completions bash)"
+```
+
+For Fish:
+
+```sh
+mkdir -p ~/.config/fish/completions
+files --completions fish > ~/.config/fish/completions/files.fish
+```
+
+For Nushell, save and load the generated module:
+
+```nu
+files --completions nu | save --force files-completions.nu
+use ./files-completions.nu *
+```
+
+Regenerate saved completion files after upgrading to pick up new flags.
+
+## Build from source
+
+Requires [Nim 2.0+](https://nim-lang.org/install.html) and
+[just](https://github.com/casey/just).
+
+```sh
+git clone https://github.com/HelgeSverre/files.git
+cd files
+just install
+```
+
+This builds Files and installs it to `~/.local/bin`; make sure that directory
+is on your `PATH`. To build without installing, run `just build` and use
+`./bin/files`.
+
+```sh
+just test        # all unit and integration tests
+just build       # optimized binary at bin/files
+just run         # build and show this repository
+just bump patch  # bump the version, tag, and push a release from main
+```
+
+The code uses Nim's standard library. `files/walk.nim` collects and filters
+the tree, `files/render.nim` draws it, and `files/options.nim` defines the CLI.
+On macOS, directory enumeration uses `getattrlistbulk`; other platforms use
+Nim's directory walker.
+
+Release CI tests and builds macOS and Linux binaries for arm64 and x86_64,
+plus Windows x86_64 binaries. See [the build workflow](.github/workflows/build.yml).
+
+To recreate the README screenshots, install [VHS](https://github.com/charmbracelet/vhs)
+and JetBrainsMono Nerd Font, build Files, and run `bash scripts/screenshots.sh`.
+The script creates a temporary example repository and captures real terminal
+output.
