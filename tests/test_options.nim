@@ -3,19 +3,19 @@ import files/[options, render]
 
 suite "CLI options":
   test "environment selects theme":
-    let opts = parseArgs(@[], envTheme = "green")
+    let opts = parseArgs(@[], env = EnvOptions(theme: "green"))
     check opts.path == "."
     check opts.theme == ctGreen
     check opts.colorMode == cmAuto
 
   test "CLI overrides theme and NO_COLOR":
     let opts = parseArgs(@["--theme=orange", "--color", "always"],
-                         envTheme = "ultraviolet", noColorEnv = true)
+                         env = EnvOptions(theme: "ultraviolet", noColor: true))
     check opts.theme == ctOrange
     check opts.colorMode == cmAlways
 
   test "help remains available with invalid environment theme":
-    let opts = parseArgs(@["--help"], envTheme = "ultraviolet")
+    let opts = parseArgs(@["--help"], env = EnvOptions(theme: "ultraviolet"))
     check opts.showHelp
     check opts.theme == ctRainbow
 
@@ -32,7 +32,7 @@ suite "CLI options":
 
   test "invalid theme is rejected":
     expect ValueError:
-      discard parseArgs(@[], envTheme = "ultraviolet")
+      discard parseArgs(@[], env = EnvOptions(theme: "ultraviolet"))
 
   test "invalid color mode is rejected":
     expect ValueError:
@@ -109,7 +109,7 @@ suite "CLI options":
 
 suite "declarative option registry":
   test "all standard options are registered":
-    check OptionSpecs.len == 17
+    check OptionSpecs.len == 21
     let (hasDepth, depthSpec) = findSpec("--depth")
     check hasDepth
     check depthSpec.shortName == "-L"
@@ -169,23 +169,142 @@ suite "compaction options":
 
   test "environment accepts boolean values":
     for value in ["1", "true", "yes", "on", "TRUE"]:
-      check parseArgs(@[], envCompact = value).compact
+      check parseArgs(@[], env = EnvOptions(compact: value)).compact
     for value in ["", "0", "false", "no", "off", "FALSE"]:
-      check not parseArgs(@[], envCompact = value).compact
+      check not parseArgs(@[], env = EnvOptions(compact: value)).compact
 
   test "explicit flags override environment including invalid values":
-    check not parseArgs(@["--no-compact"], envCompact = "1").compact
-    check parseArgs(@["--compact"], envCompact = "invalid").compact
+    check not parseArgs(@["--no-compact"], env = EnvOptions(compact: "1")).compact
+    check parseArgs(@["--compact"], env = EnvOptions(compact: "invalid")).compact
 
   test "invalid environment is actionable but does not block help or completions":
     expect ValueError:
-      discard parseArgs(@[], envCompact = "invalid")
-    check parseArgs(@["--help"], envCompact = "invalid").showHelp
-    check parseArgs(@["--version"], envCompact = "invalid").showVersion
-    check parseArgs(@["--completions=zsh"], envCompact = "invalid").completionShell == "zsh"
+      discard parseArgs(@[], env = EnvOptions(compact: "invalid"))
+    check parseArgs(@["--help"], env = EnvOptions(compact: "invalid")).showHelp
+    check parseArgs(@["--version"], env = EnvOptions(compact: "invalid")).showVersion
+    check parseArgs(@["--completions=zsh"], env = EnvOptions(compact: "invalid")).completionShell == "zsh"
 
   test "boolean flags reject values":
     expect ValueError:
       discard parseArgs(@["--compact=true"])
     expect ValueError:
       discard parseArgs(@["--no-compact=false"])
+
+suite "environment preferences":
+  test "empty environment preserves every built-in default":
+    let opts = parseArgs(@[], EnvOptions())
+    check opts.maxDepth == -1
+    check opts.icons and opts.sizes and opts.git and opts.defaults
+    check not opts.showAll and not opts.compact
+    check opts.colorMode == cmAuto
+    check opts.theme == ctRainbow
+
+  test "all environment settings select their corresponding options":
+    let opts = parseArgs(@[], EnvOptions(depth: "4", icons: "0", sizes: "false",
+      git: "off", defaults: "no", all: "yes", compact: "true",
+      color: "always", theme: "purple"))
+    check opts.maxDepth == 4
+    check not opts.icons and not opts.sizes and not opts.git and not opts.defaults
+    check opts.showAll and opts.compact
+    check opts.colorMode == cmAlways
+    check opts.theme == ctPurple
+
+  test "every boolean uses the same case-insensitive vocabulary":
+    for value in ["1", "TRUE", "yes", "ON", "0", "FALSE", "no", "OFF"]:
+      let enabled = value in ["1", "TRUE", "yes", "ON"]
+      let opts = parseArgs(@[], EnvOptions(icons: value, sizes: value, git: value,
+        defaults: value, all: value, compact: value))
+      check opts.icons == enabled
+      check opts.sizes == enabled
+      check opts.git == enabled
+      check opts.defaults == enabled
+      check opts.showAll == enabled
+      check opts.compact == enabled
+
+  test "positive CLI switches restore preferences disabled in environment":
+    let opts = parseArgs(@["--icons", "--sizes", "--git", "--defaults",
+      "--all", "--compact", "--depth=3", "--color=always", "--theme=blue"],
+      EnvOptions(icons: "0", sizes: "0", git: "0", defaults: "0", all: "0",
+        compact: "0", depth: "1", color: "never", theme: "purple", noColor: true))
+    check opts.icons and opts.sizes and opts.git and opts.defaults
+    check opts.showAll and opts.compact
+    check opts.maxDepth == 3
+    check opts.colorMode == cmAlways
+    check opts.theme == ctBlue
+
+  test "negative CLI switches disable preferences enabled in environment":
+    let opts = parseArgs(@["--no-icons", "--no-sizes", "--no-git", "--no-defaults",
+      "--no-all", "--no-compact", "--no-color"], EnvOptions(icons: "1", sizes: "1",
+      git: "1", defaults: "1", all: "1", compact: "1", color: "always"))
+    check not opts.icons and not opts.sizes and not opts.git and not opts.defaults
+    check not opts.showAll and not opts.compact
+    check opts.colorMode == cmNever
+
+  test "CLI overrides invalid values only for the corresponding setting":
+    let invalid = EnvOptions(icons: "invalid", sizes: "invalid", git: "invalid",
+      defaults: "invalid", all: "invalid", compact: "invalid", depth: "invalid",
+      color: "invalid", theme: "invalid")
+    let opts = parseArgs(@["--icons", "--sizes", "--git", "--defaults", "--all",
+      "--compact", "-L", "2", "--color=auto", "--theme=green"], invalid)
+    check opts.icons and opts.sizes and opts.git and opts.defaults
+    check opts.showAll and opts.compact
+    check opts.maxDepth == 2
+    check opts.colorMode == cmAuto
+    check opts.theme == ctGreen
+    expect ValueError:
+      discard parseArgs(@["--icons"], EnvOptions(icons: "invalid", git: "invalid"))
+
+  test "NO_COLOR overrides FILES_COLOR, including invalid values":
+    check parseArgs(@[], EnvOptions(color: "always", noColor: true)).colorMode == cmNever
+    check parseArgs(@[], EnvOptions(color: "invalid", noColor: true)).colorMode == cmNever
+    check parseArgs(@["--color=auto"], EnvOptions(color: "never", noColor: true)).colorMode == cmAuto
+    check parseArgs(@[], EnvOptions(color: "ALWAYS")).colorMode == cmAlways
+
+  test "root overrides both depth and git preferences; later flags win":
+    let env = EnvOptions(depth: "invalid", git: "invalid")
+    let root = parseArgs(@["--root"], env)
+    check root.maxDepth == 1
+    check not root.git
+    let later = parseArgs(@["--root", "--git", "-L", "5"], env)
+    check later.maxDepth == 5
+    check later.git
+    let toggles = parseArgs(@["--no-all", "--all", "--icons", "--no-icons",
+      "--no-defaults", "--defaults", "--no-git", "--git"])
+    check toggles.showAll and toggles.defaults and toggles.git
+    check not toggles.icons
+
+  test "depth accepts zero and unlimited but rejects invalid input with source":
+    check parseArgs(@[], EnvOptions(depth: "0")).maxDepth == 0
+    check parseArgs(@[], EnvOptions(depth: "-1")).maxDepth == -1
+    for value in ["-2", "abc", "1.5", "9999999999999999999999999999"]:
+      try:
+        discard parseArgs(@[], EnvOptions(depth: value))
+        check false
+      except ValueError as e:
+        check "FILES_DEPTH" in e.msg
+      expect ValueError:
+        discard parseArgs(@["--depth=" & value])
+
+  test "invalid values name the environment variable to fix":
+    for (env, name) in [
+      (EnvOptions(icons: "bad"), "FILES_ICONS"),
+      (EnvOptions(sizes: "bad"), "FILES_SIZES"),
+      (EnvOptions(git: "bad"), "FILES_GIT"),
+      (EnvOptions(defaults: "bad"), "FILES_DEFAULTS"),
+      (EnvOptions(all: "bad"), "FILES_ALL"),
+      (EnvOptions(compact: "bad"), "FILES_COMPACT"),
+      (EnvOptions(color: "bad"), "FILES_COLOR"),
+      (EnvOptions(theme: "bad"), "FILES_COLOR_THEME")]:
+      try:
+        discard parseArgs(@[], env)
+        check false
+      except ValueError as e:
+        check name in e.msg
+
+  test "informational commands ignore all persistent preferences":
+    let invalid = EnvOptions(icons: "bad", sizes: "bad", git: "bad",
+      defaults: "bad", all: "bad", compact: "bad", depth: "bad",
+      color: "bad", theme: "bad")
+    check parseArgs(@["--help"], invalid).showHelp
+    check parseArgs(@["--version"], invalid).showVersion
+    check parseArgs(@["--completions=zsh"], invalid).completionShell == "zsh"

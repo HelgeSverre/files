@@ -106,11 +106,9 @@ proc footer(rs: RunState): string =
     if rs.changed > 0: result.add " · " & $rs.changed & " changed"
 
 proc main() =
-  let noColor = existsEnv("NO_COLOR") and getEnv("NO_COLOR").len > 0
   var cli: CliOptions
   try:
-    cli = parseArgs(commandLineParams(), getEnv("FILES_COLOR_THEME"),
-                    noColor, getEnv("FILES_COMPACT"))
+    cli = parseArgs(commandLineParams(), readEnv())
   except ValueError:
     fail(getCurrentExceptionMsg())
   if cli.completionShell.len > 0:

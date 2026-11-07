@@ -285,3 +285,13 @@ suite "compaction completions":
       else:
         check "--compact" in script
         check "--no-compact" in script
+
+suite "environment override completions":
+  test "all shells offer the inverse switches for persistent preferences":
+    for shell in [skZsh, skBash, skFish, skNu]:
+      let script = generateCompletion(shell)
+      for name in ["icons", "git", "defaults", "no-all"]:
+        if shell == skFish:
+          check "-l " & name & " " in script
+        else:
+          check "--" & name in script

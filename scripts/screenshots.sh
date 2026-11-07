@@ -25,7 +25,8 @@ printf 'Dependency notes\n' > docs/dependencies.md
 git add docs/dependencies.md
 printf 'Release notes\n' > NOTES.md
 export PATH="$repo_dir/bin:$PATH"
-export FILES_COMPACT=0 FILES_COLOR_THEME=rainbow
+export FILES_COMPACT=0 FILES_COLOR_THEME=rainbow FILES_DEPTH=-1
+export FILES_ICONS=1 FILES_SIZES=1 FILES_GIT=1 FILES_ALL=0 FILES_DEFAULTS=1 FILES_COLOR=auto
 unset NO_COLOR
 capture() {
   local name="$1" height="$2" command_text="$3"

@@ -1,4 +1,4 @@
-import std/[os, osproc, strutils, tempfiles, unittest]
+import std/[os, osproc, strtabs, strutils, tempfiles, unittest]
 
 suite "compact CLI integration":
   test "filtering, depth, environment, and statistics use real filesystem paths":
@@ -13,29 +13,32 @@ suite "compact CLI integration":
         "nim c -d:release --opt:speed -o:" & quoteShell(binary) & " files.nim")
       doAssert buildCode == 0, buildOutput
     let cmd = quoteShell(binary) & " --no-git --no-icons --no-color --no-sizes " & quoteShell(root)
-    let previous = getEnv("FILES_COMPACT")
-    let existed = existsEnv("FILES_COMPACT")
-    defer:
-      if existed: putEnv("FILES_COMPACT", previous)
-      else: delEnv("FILES_COMPACT")
-    putEnv("FILES_COMPACT", "1")
-    let (normal, code) = execCmdEx(cmd)
+    when defined(windows):
+      let env = newStringTable(modeCaseInsensitive)
+    else:
+      let env = newStringTable(modeCaseSensitive)
+    for name, value in envPairs(): env[name] = value
+    for name in ["FILES_COMPACT", "FILES_DEPTH", "FILES_ALL", "FILES_DEFAULTS",
+                 "FILES_COLOR_THEME"]:
+      env[name] = ""
+    env["FILES_COMPACT"] = "1"
+    let (normal, code) = execCmdEx(cmd, env = env)
     check code == 0
     check "└── src/main/\n" in normal
     check "4 dirs · 2 files" in normal
-    let (filtered, filteredCode) = execCmdEx(cmd & " --ignore=notes.txt")
+    let (filtered, filteredCode) = execCmdEx(cmd & " --ignore=notes.txt", env = env)
     check filteredCode == 0
     check "└── src/main/kotlin/\n    └── Model.kt" in filtered
     check "4 dirs · 1 files" in filtered
-    let (limited, limitedCode) = execCmdEx(cmd & " --depth=2")
+    let (limited, limitedCode) = execCmdEx(cmd & " --depth=2", env = env)
     check limitedCode == 0
     check "└── src/main/\n" in limited
     check "kotlin" notin limited
     check "3 dirs · 0 files" in limited
-    let (expanded, expandedCode) = execCmdEx(cmd & " --no-compact")
+    let (expanded, expandedCode) = execCmdEx(cmd & " --no-compact", env = env)
     check expandedCode == 0
     check "└── src/\n    └── main/" in expanded
-    putEnv("FILES_COMPACT", "0")
-    let (explicit, explicitCode) = execCmdEx(cmd & " --compact")
+    env["FILES_COMPACT"] = "0"
+    let (explicit, explicitCode) = execCmdEx(cmd & " --compact", env = env)
     check explicitCode == 0
     check explicit == normal

@@ -164,27 +164,70 @@ The path defaults to the current directory.
 
 | Flag | Effect | Environment variable |
 | --- | --- | --- |
-| `-a`, `--all` | Show hidden and ignored entries in dim text | — |
-| `-L`, `--depth <n>` | Stop after `n` directory levels | — |
+| `-a`, `--all` | Show hidden and ignored entries in dim text | `FILES_ALL=1` |
+| `--no-all` | Hide hidden and ignored entries (default) | `FILES_ALL=0` |
+| `-L`, `--depth <n>` | Stop after `n` directory levels; `-1` means unlimited | `FILES_DEPTH=<n>` |
 | `--root` | Show one level and skip Git (`--depth=1 --no-git`) | — |
 | `-I`, `--ignore <glob>` | Exclude another pattern; repeat as needed | — |
 | `--compact` | Fold single-child folder chains onto one row | `FILES_COMPACT=1` |
 | `--no-compact` | Show each folder on its own row (default) | `FILES_COMPACT=0` |
-| `-t`, `--sizes` | Show file sizes (default) | — |
-| `--no-sizes` | Hide file sizes | — |
-| `--no-icons` | Hide Nerd Font icons | — |
-| `--color <when>` | `auto` (default), `always`, or `never` | `NO_COLOR` disables colors when nonempty; no environment setting for `auto` or `always` |
-| `--no-color` | Same as `--color=never` | `NO_COLOR=1` (any nonempty value) |
+| `-t`, `--sizes` | Show file sizes (default) | `FILES_SIZES=1` |
+| `--no-sizes` | Hide file sizes | `FILES_SIZES=0` |
+| `--icons` | Show Nerd Font icons (default) | `FILES_ICONS=1` |
+| `--no-icons` | Hide Nerd Font icons | `FILES_ICONS=0` |
+| `--color <when>` | `auto` (default), `always`, or `never` | `FILES_COLOR=<when>` |
+| `--no-color` | Same as `--color=never` | `FILES_COLOR=never` or nonempty `NO_COLOR` |
 | `--theme <name>` | Choose the starting color for the depth gradient | `FILES_COLOR_THEME=<name>` |
-| `--no-git` | Skip Git status and branch lookups | — |
-| `--no-defaults` | Disable built-in ignore patterns; keep `.gitignore` rules | — |
+| `--git` | Query Git status and branch (default) | `FILES_GIT=1` |
+| `--no-git` | Skip Git status and branch lookups | `FILES_GIT=0` |
+| `--defaults` | Enable built-in ignore patterns (default) | `FILES_DEFAULTS=1` |
+| `--no-defaults` | Disable built-in ignore patterns; keep `.gitignore` rules | `FILES_DEFAULTS=0` |
 | `--completions <shell>`, `--completion <shell>` | Generate Zsh, Bash, Fish, or Nushell completions | — |
 | `-h`, `--help` | Show help | — |
 | `-v`, `--version` | Show the installed version | — |
 
-Explicit flags override environment settings. For example, `--no-compact`
-overrides `FILES_COMPACT=1`, and `--color=always` overrides `NO_COLOR`.
-A dash means the flag has no environment equivalent.
+A dash means the flag has no environment equivalent. `--root` still overrides
+both depth and Git preferences, as if you passed `--depth=1 --no-git`.
+
+## Configure defaults
+
+Set `FILES_*` variables in your shell configuration to avoid repeating flags:
+
+```sh
+export FILES_COMPACT=1
+export FILES_DEPTH=5
+export FILES_ICONS=0
+export FILES_COLOR_THEME=purple
+```
+
+| Variable | Values | Default |
+| --- | --- | --- |
+| `FILES_ALL` | Boolean; show hidden and ignored entries | `false` |
+| `FILES_DEPTH` | Integer >= `0`, or `-1` for unlimited | `-1` |
+| `FILES_COMPACT` | Boolean; fold single-child folder chains | `false` |
+| `FILES_ICONS` | Boolean; show Nerd Font icons | `true` |
+| `FILES_SIZES` | Boolean; show file sizes | `true` |
+| `FILES_GIT` | Boolean; query Git status and branch | `true` |
+| `FILES_DEFAULTS` | Boolean; enable built-in ignore patterns | `true` |
+| `FILES_COLOR` | `auto`, `always`, `never` | `auto` |
+| `FILES_COLOR_THEME` | `blue`, `purple`, `green`, `red`, `orange`, `yellow`, `rainbow` | `rainbow` |
+
+All boolean variables accept `1/0`, `true/false`, `yes/no`, or `on/off`,
+case insensitive. Empty values use the built-in default. Invalid values
+produce an error naming the variable to fix.
+
+Explicit CLI flags override their environment settings, including invalid
+values. For example, `FILES_ICONS=0 files --icons` shows icons for that command.
+When opposing flags appear, the last one wins. Help, version, and completion
+generation work even if your environment settings are invalid.
+
+Colors follow this order: explicit CLI flags, then a nonempty `NO_COLOR`,
+then `FILES_COLOR`, then the built-in `auto` default. This means
+`NO_COLOR=1 FILES_COLOR=always files` has no colors, while
+`NO_COLOR=1 files --color=always` does.
+
+The path, extra ignore patterns, and informational flags do not have
+`FILES_*` settings.
 
 ## Shell completions
 

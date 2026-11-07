@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-11-07
+
+### Added
+- Environment defaults via `FILES_DEPTH`, `FILES_ICONS`, `FILES_SIZES`,
+  `FILES_GIT`, `FILES_ALL`, `FILES_DEFAULTS`, and `FILES_COLOR`, alongside
+  existing `FILES_COMPACT` and `FILES_COLOR_THEME` settings
+- `--icons`, `--git`, `--defaults`, and `--no-all` to override environment
+  preferences in either direction; all boolean settings use the same values
+- Environment help and README reference, with CLI and `NO_COLOR` precedence
+
+### Fixed
+- Help, version, and completions remain available with invalid environment
+  preferences; overridden preferences do not trigger validation errors
+- Depth values below `-1` are rejected rather than silently treated as unlimited
+
 ## [0.3.1] - 2026-11-07
 
 ### Fixed
@@ -113,7 +128,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Release CI building binaries for macOS (arm64 + x86_64) and Linux
   (arm64 + x86_64), plus an install script
 
-[Unreleased]: https://github.com/HelgeSverre/files/compare/v0.3.1...HEAD
+[Unreleased]: https://github.com/HelgeSverre/files/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/HelgeSverre/files/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/HelgeSverre/files/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/HelgeSverre/files/compare/v0.2.6...v0.3.0
 [0.2.6]: https://github.com/HelgeSverre/files/compare/v0.2.1...v0.2.6
