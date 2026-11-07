@@ -14,13 +14,13 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: macos-14
+          - os: macos-15
             arch: arm64
             target: macos
             exe: ""
             extra: ""
             nim_url: https://nim-lang.org/download/nim-2.2.8-macosx_arm64.tar.xz
-          - os: macos-14
+          - os: macos-15
             arch: x86_64
             target: macos
             exe: ""
