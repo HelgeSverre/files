@@ -7,7 +7,7 @@ folders by default. It works on macOS, Linux, and Windows.
 ```sh
 files                  # current directory
 files ~/code/wardriver # another directory
-files --compact       # fold long folder chains onto one row
+files --compact        # fold long folder chains onto one row
 ```
 
 ![Files showing a project tree with file sizes and Git status](assets/screenshots/overview.png)
