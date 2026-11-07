@@ -6,7 +6,7 @@ folders by default. It works on macOS, Linux, and Windows.
 
 ```sh
 files                  # current directory
-files ~/code/wardriver # another directory
+files ~/code/project   # another directory
 files --compact        # fold long folder chains onto one row
 ```
 
