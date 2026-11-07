@@ -162,25 +162,28 @@ files [options] [path]
 
 The path defaults to the current directory.
 
-| Flag | Effect |
-| --- | --- |
-| `-a`, `--all` | Show hidden and ignored entries in dim text |
-| `-L`, `--depth <n>` | Stop after `n` directory levels |
-| `--root` | Show one level and skip Git (`--depth=1 --no-git`) |
-| `-I`, `--ignore <glob>` | Exclude another pattern; repeat as needed |
-| `--compact` | Fold single-child folder chains onto one row |
-| `--no-compact` | Show each folder on its own row (default) |
-| `-t`, `--sizes` | Show file sizes (default) |
-| `--no-sizes` | Hide file sizes |
-| `--no-icons` | Hide Nerd Font icons |
-| `--color <when>` | `auto` (default), `always`, or `never` |
-| `--no-color` | Same as `--color=never` |
-| `--theme <name>` | Choose the starting color for the depth gradient |
-| `--no-git` | Skip Git status and branch lookups |
-| `--no-defaults` | Disable built-in ignore patterns; keep `.gitignore` rules |
-| `--completions <shell>`, `--completion <shell>` | Generate Zsh, Bash, Fish, or Nushell completions |
-| `-h`, `--help` | Show help |
-| `-v`, `--version` | Show the installed version |
+| Flag | Effect | Environment variable |
+| --- | --- | --- |
+| `-a`, `--all` | Show hidden and ignored entries in dim text | — |
+| `-L`, `--depth <n>` | Stop after `n` directory levels | — |
+| `--root` | Show one level and skip Git (`--depth=1 --no-git`) | — |
+| `-I`, `--ignore <glob>` | Exclude another pattern; repeat as needed | — |
+| `--compact` | Fold single-child folder chains onto one row | `FILES_COMPACT=1` |
+| `--no-compact` | Show each folder on its own row (default) | `FILES_COMPACT=0` |
+| `-t`, `--sizes` | Show file sizes (default) | — |
+| `--no-sizes` | Hide file sizes | — |
+| `--no-icons` | Hide Nerd Font icons | — |
+| `--color <when>` | `auto` (default), `always`, or `never` | `NO_COLOR` disables colors when nonempty; no environment setting for `auto` or `always` |
+| `--no-color` | Same as `--color=never` | `NO_COLOR=1` (any nonempty value) |
+| `--theme <name>` | Choose the starting color for the depth gradient | `FILES_COLOR_THEME=<name>` |
+| `--no-git` | Skip Git status and branch lookups | — |
+| `--no-defaults` | Disable built-in ignore patterns; keep `.gitignore` rules | — |
+| `--completions <shell>`, `--completion <shell>` | Generate Zsh, Bash, Fish, or Nushell completions | — |
+| `-h`, `--help` | Show help | — |
+| `-v`, `--version` | Show the installed version | — |
+Explicit flags override environment settings. For example, `--no-compact`
+overrides `FILES_COMPACT=1`, and `--color=always` overrides `NO_COLOR`.
+A dash means the flag has no environment equivalent.
 
 ## Shell completions
 
