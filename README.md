@@ -181,6 +181,7 @@ The path defaults to the current directory.
 | `--completions <shell>`, `--completion <shell>` | Generate Zsh, Bash, Fish, or Nushell completions | — |
 | `-h`, `--help` | Show help | — |
 | `-v`, `--version` | Show the installed version | — |
+
 Explicit flags override environment settings. For example, `--no-compact`
 overrides `FILES_COMPACT=1`, and `--color=always` overrides `NO_COLOR`.
 A dash means the flag has no environment equivalent.
