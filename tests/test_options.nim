@@ -109,7 +109,7 @@ suite "CLI options":
 
 suite "declarative option registry":
   test "all standard options are registered":
-    check OptionSpecs.len == 15
+    check OptionSpecs.len == 17
     let (hasDepth, depthSpec) = findSpec("--depth")
     check hasDepth
     check depthSpec.shortName == "-L"
@@ -159,3 +159,33 @@ suite "color activation":
   test "explicit modes override terminal detection":
     check colorEnabled(cmAlways, false)
     check not colorEnabled(cmNever, true)
+
+suite "compaction options":
+  test "off by default and explicitly toggleable, last flag wins":
+    check not parseArgs(@[]).compact
+    check parseArgs(@["--compact"]).compact
+    check not parseArgs(@["--compact", "--no-compact"]).compact
+    check parseArgs(@["--no-compact", "--compact"]).compact
+
+  test "environment accepts boolean values":
+    for value in ["1", "true", "yes", "on", "TRUE"]:
+      check parseArgs(@[], envCompact = value).compact
+    for value in ["", "0", "false", "no", "off", "FALSE"]:
+      check not parseArgs(@[], envCompact = value).compact
+
+  test "explicit flags override environment including invalid values":
+    check not parseArgs(@["--no-compact"], envCompact = "1").compact
+    check parseArgs(@["--compact"], envCompact = "invalid").compact
+
+  test "invalid environment is actionable but does not block help or completions":
+    expect ValueError:
+      discard parseArgs(@[], envCompact = "invalid")
+    check parseArgs(@["--help"], envCompact = "invalid").showHelp
+    check parseArgs(@["--version"], envCompact = "invalid").showVersion
+    check parseArgs(@["--completions=zsh"], envCompact = "invalid").completionShell == "zsh"
+
+  test "boolean flags reject values":
+    expect ValueError:
+      discard parseArgs(@["--compact=true"])
+    expect ValueError:
+      discard parseArgs(@["--no-compact=false"])

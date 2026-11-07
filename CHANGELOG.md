@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-11-07
+
+### Added
+- Optional folder-chain compaction via `--compact` and `FILES_COMPACT`, with
+  `--no-compact` to override it; every folder segment retains its depth color
+- Rendering, CLI, environment, completion, and filesystem integration tests
+  for directory compaction
+
+## [0.2.6]
+
 ### Added
 - `--root` flag: alias for `--depth=1 --no-git`
 - `--completions <shell>` (alias `--completion`): generate shell completion
@@ -98,7 +108,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Release CI building binaries for macOS (arm64 + x86_64) and Linux
   (arm64 + x86_64), plus an install script
 
-[Unreleased]: https://github.com/HelgeSverre/files/compare/v0.2.1...HEAD
+[Unreleased]: https://github.com/HelgeSverre/files/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/HelgeSverre/files/compare/v0.2.6...v0.3.0
+[0.2.6]: https://github.com/HelgeSverre/files/compare/v0.2.1...v0.2.6
 [0.2.1]: https://github.com/HelgeSverre/files/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/HelgeSverre/files/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/HelgeSverre/files/releases/tag/v0.1.0

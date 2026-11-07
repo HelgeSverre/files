@@ -89,6 +89,7 @@ proc renderTreeOutput(rs: RunState): string =
   let termW = if tty: terminalWidth() else: 0
   var ropts = RenderOptions(color: color, theme: rs.cli.theme,
                             icons: rs.cli.icons, sizes: rs.cli.sizes,
+                            compact: rs.cli.compact,
                             termWidth: if termW > 0: termW else: 100000)
   var lines: seq[Line]
   renderTree(rs.root, ropts, lines)
@@ -108,7 +109,8 @@ proc main() =
   let noColor = existsEnv("NO_COLOR") and getEnv("NO_COLOR").len > 0
   var cli: CliOptions
   try:
-    cli = parseArgs(commandLineParams(), getEnv("FILES_COLOR_THEME"), noColor)
+    cli = parseArgs(commandLineParams(), getEnv("FILES_COLOR_THEME"),
+                    noColor, getEnv("FILES_COMPACT"))
   except ValueError:
     fail(getCurrentExceptionMsg())
   if cli.completionShell.len > 0:

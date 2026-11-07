@@ -26,6 +26,7 @@ type
     color*: bool
     theme*: ColorTheme
     icons*: bool
+    compact*: bool
     sizes*: bool
     termWidth*: int
 
@@ -176,9 +177,28 @@ proc emitNode(n: Node, prefix: seq[Chunk], isLast: bool, opts: RenderOptions,
   if opts.icons:
     addChunk(line, iconFor(n), nameCol, dim = isGhost, bold = n.kind == kDir)
     addChunk(line, " ", nameCol)
-  var name = n.name
-  if n.kind == kDir: name.add "/"
-  let remaining = budget - line.contentLen
+  # Compact only the presentation; nodes retain their real paths and depths.
+  # Keep visibility boundaries separate so hidden/ignored styling stays clear.
+  var tail = n
+  var segments = @[n]
+  if opts.compact:
+    while tail.kind == kDir and tail.children.len == 1:
+      let child = tail.children[0]
+      if child.kind != kDir or child.hidden != tail.hidden or
+          child.ignored != tail.ignored:
+        break
+      segments.add child
+      tail = child
+  var remaining = budget - line.contentLen
+  if segments.len > 1:
+    for segment in segments:
+      let (text, width) = truncateRun(segment.name & "/", remaining)
+      addChunk(line, text, dirColor(opts.theme, segment.depth),
+               dim = isGhost, bold = true)
+      remaining -= width
+      if width < displayWidth(segment.name & "/"): break
+  var name = if segments.len > 1: "" else: n.name
+  if n.kind == kDir and segments.len == 1: name.add "/"
   let (tn, _) = truncateRun(name, remaining)
   addChunk(line, tn, nameCol, dim = isGhost, bold = n.kind == kDir)
   if n.kind == kLink and n.linkTarget.len > 0:
@@ -193,7 +213,7 @@ proc emitNode(n: Node, prefix: seq[Chunk], isLast: bool, opts: RenderOptions,
     line.size = n.size
     line.hasSize = true
   lines.add line
-  if n.kind == kDir and n.children.len > 0:
+  if tail.kind == kDir and tail.children.len > 0:
     var cp: seq[Chunk]
     if depth == 0:
       cp = @[]
@@ -203,8 +223,8 @@ proc emitNode(n: Node, prefix: seq[Chunk], isLast: bool, opts: RenderOptions,
         cp.add Chunk(txt: "    ", w: 4)
       else:
         cp.add Chunk(txt: "│   ", fg: connectorColor(opts.theme, depth), w: 4)
-    for i, c in n.children:
-      emitNode(c, cp, i == n.children.len - 1, opts, lines, budget)
+    for i, c in tail.children:
+      emitNode(c, cp, i == tail.children.len - 1, opts, lines, budget)
 
 proc renderTree*(root: Node, opts: RenderOptions, lines: var seq[Line]) =
   let reserved = if opts.sizes: 14 else: 0

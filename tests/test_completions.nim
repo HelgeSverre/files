@@ -274,3 +274,14 @@ suite "CLI integration":
     let (missOut, missCode) = execCmdEx(quoteShell(filesBin) & " --completions")
     check missCode == 1
     check "files: missing value for --completions" in missOut
+
+suite "compaction completions":
+  test "both switches are offered in every shell":
+    for shell in [skZsh, skBash, skFish, skNu]:
+      let script = generateCompletion(shell)
+      if shell == skFish:
+        check "-l compact " in script
+        check "-l no-compact " in script
+      else:
+        check "--compact" in script
+        check "--no-compact" in script

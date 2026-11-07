@@ -25,6 +25,7 @@ type
     icons*: bool
     colorMode*: ColorMode
     theme*: ColorTheme
+    compact*: bool
     sizes*: bool
     git*: bool
     defaults*: bool
@@ -44,6 +45,8 @@ const OptionSpecs*: seq[OptionSpec] = @[
   OptionSpec(shortName: "-I", longName: "--ignore", description: "extra ignore pattern (repeatable)", argKind: akString, argName: "glob", repeatable: true),
   OptionSpec(shortName: "-t", longName: "--sizes", description: "show file sizes (default)", argKind: akNone),
   OptionSpec(shortName: "", longName: "--no-sizes", description: "hide file sizes", argKind: akNone),
+  OptionSpec(longName: "--compact", description: "combine single-child folder chains into one path", argKind: akNone),
+  OptionSpec(longName: "--no-compact", description: "show each folder on its own row (default)", argKind: akNone),
   OptionSpec(shortName: "", longName: "--no-icons", description: "disable nerd-font file icons", argKind: akNone),
   OptionSpec(shortName: "", longName: "--color", description: "colorize: auto, always, or never", argKind: akChoice, argName: "when", choices: ColorChoices),
   OptionSpec(shortName: "", longName: "--no-color", description: "alias for --color=never", argKind: akNone),
@@ -102,7 +105,7 @@ proc parseShell*(s: string): string =
     raise newException(ValueError, "unsupported shell '" & s & "' (expected zsh, bash, fish, or nu)")
 
 proc parseArgs*(argv: seq[string], envTheme = "",
-                noColorEnv = false): CliOptions =
+                noColorEnv = false, envCompact = ""): CliOptions =
   result.maxDepth = -1
   result.icons = true
   result.colorMode = if noColorEnv: cmNever else: cmAuto
@@ -110,6 +113,7 @@ proc parseArgs*(argv: seq[string], envTheme = "",
   result.sizes = true
   result.git = true
   result.defaults = true
+  var compactExplicit = false
   var themeExplicit = false
   var i = 0
   while i < argv.len:
@@ -153,6 +157,12 @@ proc parseArgs*(argv: seq[string], envTheme = "",
         result.sizes = true
       of "--no-sizes":
         result.sizes = false
+      of "--compact":
+        result.compact = true
+        compactExplicit = true
+      of "--no-compact":
+        result.compact = false
+        compactExplicit = true
       of "--no-icons":
         result.icons = false
       of "--color":
@@ -185,5 +195,13 @@ proc parseArgs*(argv: seq[string], envTheme = "",
 
   if not themeExplicit and not result.showHelp and not result.showVersion:
     result.theme = parseColorTheme(envTheme)
+  if not compactExplicit and not result.showHelp and not result.showVersion and
+      result.completionShell.len == 0:
+    case envCompact.toLowerAscii()
+    of "", "0", "false", "no", "off": result.compact = false
+    of "1", "true", "yes", "on": result.compact = true
+    else:
+      raise newException(ValueError, "invalid FILES_COMPACT: " & envCompact &
+        " (expected 1, 0, true, false, yes, no, on, or off)")
   if result.path.len == 0:
     result.path = "."

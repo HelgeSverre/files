@@ -78,6 +78,8 @@ files [options] [path]
 | `-I`, `--ignore <glob>` | Add an ignore pattern; may be repeated |
 | `-t`, `--sizes` | Show file sizes (default) |
 | `--no-sizes` | Hide file sizes |
+| `--compact` | Combine single-child folder chains into one path |
+| `--no-compact` | Show each folder on its own row (default) |
 | `--no-icons` | Disable Nerd Font icons |
 | `--color <when>` | Colorize output: `auto`, `always`, or `never` |
 | `--no-color` | Alias for `--color=never` |
@@ -93,6 +95,25 @@ environment. Named themes keep a consistent hue and progressively dim it at
 environment. Each theme selects the starting hue, which then rotates as tree
 depth increases. `files` also honors `NO_COLOR`; use `--color=always` to
 override it or to preserve ANSI colors when piping output.
+
+### Compact folders
+
+```sh
+files --compact ~/code/wardriver
+export FILES_COMPACT=1  # enable by default; --no-compact overrides it
+```
+
+With `--compact`, consecutive folders with exactly one visible child folder
+share a row, for example `src/main/kotlin/no/helge/fieldscan/core/`. Each folder
+segment keeps its original depth color. Branches, files, symlinks, and changes
+in hidden/ignored styling stop the chain; the requested root stays on its own
+row. Filtering happens first, so ignored entries do not prevent compaction.
+`--depth` still limits real filesystem depth, and footer counts still include
+all collected directories. File sizes and Git badges are unchanged.
+
+Compaction is off by default. `FILES_COMPACT` accepts `1/0`, `true/false`,
+`yes/no`, or `on/off` (case insensitive). Explicit CLI flags override it;
+when both switches occur, the last wins. Shell completions include both flags.
 
 ## How it works
 
